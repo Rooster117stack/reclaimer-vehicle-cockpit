@@ -1,0 +1,25 @@
+# Generated runtime, downloaded clients, diagnostics and development evidence
+runtime/
+logs/
+test/
+evidence/
+reference/
+dist/
+publish/
+
+# Local preferences and profiles; never publish account or session data
+camera-settings.ini
+profile.json
+stats-key.json
+customization-preferences.json
+.env
+.env.*
+*.key
+*.pem
+
+# Download and build intermediates
+*.download
+*.tmp
+*.pdb
+obj/
+bin/

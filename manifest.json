@@ -1,0 +1,13 @@
+﻿{
+    "name":  "Vehicle Cockpit Personal Helper",
+    "version":  "0.3.2",
+    "reclaimer_version":  "automatic-latest-stable",
+    "mcc_halo3_version":  "1.3528.0.0",
+    "tested_reclaimer_version":  "0.9.23",
+    "halo3_sha256":  "B209D8454B12DC77E54CCD2C9924EC8D44B8619D21CF98E36FFAF601E67EFB63",
+    "helper_sha256":  "13A6012FC8BEB5F121594F134A26DB78915E8CAFAFEAB172BB0371986A52D1B4",
+    "scope":  "client-local vehicle cameras; native and approximate seat head markers",
+    "license":  "MIT",
+    "compatibility":  "Reclaimer client versions accepted while verified Halo 3 engine/layout stays compatible",
+    "toggle_key_default":  "F8"
+}
