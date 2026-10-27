@@ -23,3 +23,8 @@ customization-preferences.json
 *.pdb
 obj/
 bin/
+
+# Large supplied audio belongs in the complete release ZIP, not Git history.
+/audio/**/*.wav
+/audio/**/*.mp3
+*.mp4

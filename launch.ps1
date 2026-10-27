@@ -113,7 +113,7 @@ try {
         }
         [Diagnostics.Process]::Start($cameraStart) | Out-Null
     }
-    Write-Host 'Leave the camera helper open. Your saved toggle key (default F8) switches cockpit cameras on/off.'
+    Write-Host 'Leave the helper open. F8: cockpit camera. F9: Warthog radio on/off. F10: next station.'
 } catch {
     Write-Host ('Cannot start: ' + $_.Exception.Message) -ForegroundColor Red
     exit 1

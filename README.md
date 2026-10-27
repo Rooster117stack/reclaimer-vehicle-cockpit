@@ -1,38 +1,48 @@
-# Vehicle Cockpit for Project Reclaimer
+# Vehicle Cockpit + Warthog Audio for Project Reclaimer
 
-A client-local first-person vehicle camera helper for Halo 3 in Project Reclaimer, including many stock and HugeGrass vehicles. Driver, passenger and turret seats are handled when their camera data permits it.
+Client-local first-person vehicle cameras for Halo 3 in Project Reclaimer, plus a Warthog engine recording driven by native engine speed and a nearby radio with four songs. Driver, passenger and turret cameras work where the vehicle's camera data permits them.
 
-**[Download v0.3.2](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2)** - choose `VehicleCockpitPersonal-0.3.2.zip` under Assets.
+**[Download the v0.4.0 audio preview](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.0)** — choose **VehicleCockpitWarthogAudio-0.4.0.zip** under Assets. The ZIP includes all engine loops and radio tracks. **Driving/listening and new-hotkey gameplay checks are still pending.**
+
+The previous **[v0.3.2 camera-only release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2)** remains available unchanged.
 
 ## Play
 
-Requires Windows x64 and your own MCC installation with Halo 3. The supported Halo 3 engine is **1.3528.0.0**; v0.3.2 was tested against Reclaimer **0.9.23**.
+Requires Windows x64 and your own MCC installation with Halo 3. Supported Halo 3 engine: **1.3528.0.0**; tested Reclaimer: **0.9.23**.
 
-1. Extract the entire release ZIP into a writable folder.
-2. Double-click **PLAY_FIRST_PERSON.cmd**. It downloads and checksum-verifies the latest official stable Reclaimer, or reuses an already-running client. A verified cached client is available if the release lookup fails.
-3. Leave the helper open, join a Reclaimer game normally, and enter a vehicle. Wait for **ON**.
-4. Press **F8** to toggle the cameras. To change the shortcut, click **Toggle key**, press your shortcut, then **Save key**. The game or helper must be focused. Some seats need an exit and re-entry after toggling.
+1. Extract the entire release ZIP into a writable folder, including `audio/`.
+2. Double-click **PLAY_FIRST_PERSON.cmd**. It verifies and downloads the latest official stable Reclaimer, or reuses an already-running client. It can fall back to a verified cached client if the release lookup fails.
+3. Leave the helper open, join normally and enter a Warthog.
+4. **F8** toggles cockpit cameras, **F9** toggles the radio and **F10** changes station. Radio starts off. Shortcuts act while the game or helper is focused.
 
-Friends need the complete ZIP and their own game installation; no host-side camera mod is required. `WarthogCamera.exe` is the legacy filename and can also be started directly when Reclaimer is already running.
+Untick **Warthog engine recording** to restore Halo's original engine sound. Close the helper normally to restore camera and sound changes. If it is force-killed, restart Reclaimer. To uninstall, close it and delete its folder.
+
+Friends need the complete ZIP and their own game. No host-side mod is required for these local effects. The legacy filename `WarthogCamera.exe` is retained; it can run directly when Reclaimer is already open.
+
+## Engine and radio
+
+Six crossfaded sound bands use only the first rev sweep of the supplied recording; its repeated second sweep is excluded. The helper reads native Warthog engine speed and power. It changes audio, not vehicle physics or gearing. The recording begins with the car already moving, so idle is a lowered-pitch approximation, and cabin/road noise remains in the samples.
+
+The radio follows your seated Warthog, otherwise the nearest supported Warthog. It is louder in any seat and fades to silence at approximately **12 metres** outside. Each of the four songs is a looping station; switching off or leaving range pauses it. Only the person running the helper hears it. There is no synchronized server radio state, wall occlusion or directional stereo pan.
+
+Supported Warthogs use a guarded engine-only sound-function edit. Shared sound assets used by civilian cars are preserved. Native sound functions can be shared across Warthog variants, so up to eight nearby running Warthog engines are rendered locally within approximately 60 metres while replacement is active. Tire, collision and turret sounds remain native.
 
 ## Cameras and compatibility
 
-The helper scans loaded vehicles automatically, including on new maps. It prefers native cockpit markers. The optional approximate-camera checkbox adds head-level cameras where usable seat markers exist. Boarding, AI-only and cargo seats are excluded; existing first-person seats stay native. Camera placement depends on the vehicle model: clipping, missing interiors or unusable markers can prevent a good view.
+Loaded vehicle seats are scanned automatically, including on new maps. Native cockpit markers are preferred; optional approximate head cameras use suitable seat markers. Boarding, AI-only and cargo seats are excluded. The HugeGrass Sabre pilot correction from v0.3.2 remains included. Model geometry can cause clipping, missing interiors or unusable camera positions; every vehicle has not been visually tested.
 
-v0.3.2 corrects the **HugeGrass Sabre pilot camera**, whose original named camera sits behind the aircraft. This targeted correction also works with generic approximate cameras disabled. F8 or the main checkbox restores it along with the other camera changes.
+Stock and the installed HugeGrass Warthog chassis were recognized. Audio on future maps requires a readable matching cache and compatible Warthog sound data. Unknown sound layouts retain the original engine sound. Split-screen audio is not supported.
 
-Reclaimer client versions are not pinned. Future updates can work automatically while the verified Halo 3 engine and data layouts remain compatible; an engine/layout change may require a helper update. This is a separate helper for Reclaimer, shared independently of automatic map downloads. It does not target Steam MCC matchmaking. It changes loaded camera data, preserves vehicle physics, and adds no manual gearbox. No game assets are included.
+The launcher follows official stable Reclaimer updates, but the exact Halo 3 engine hash and layouts remain guarded. A future engine change can require a helper update. This targets **Project Reclaimer**, not Steam MCC matchmaking, and is distributed separately from Reclaimer's automatic map downloads. No game files, executable-page patches, DLL injection, anti-cheat bypass or manual gearbox are included.
 
-## Test status
+## Verification
 
-In a local HugeGrass Rebalance match, v0.3.2 changed only the Sabre driver's camera reference and added a pilot-head marker compared with v0.3.1. All **439 other seat definitions** matched, and F8 restored the original camera data exactly. The Sabre correction also passed with generic approximate cameras off. **This verifies live camera data; in-seat cockpit framing and sustained Sabre flight have not been visually validated.** Individual viewpoints and every public server/mod have not been tested.
+The audio build passed 86 checks covering silent real-device playback, four stations, looping, pause/resume/next, distance gains and multiple-engine blending. Live stationary-player/Warthog telemetry passed. Native engine analysis established the RPM and engine-mute paths. Closing the helper restored all 20 tested vehicle definitions/cameras and the Warthog engine-sound function exactly. Cache checks covered stock Valhalla and HugeGrass.
 
-## Removal and troubleshooting
-
-Close the helper normally to restore its camera changes. If it is force-killed, restart the game. To uninstall, close it and delete its folder. Diagnostic logs are in `logs/`; shortcut settings are in `camera-settings.ini`. See [README.txt](README.txt) for detailed behavior and earlier test results.
+**Still pending:** an actual seated driving/listening comparison and the new hotkeys during gameplay. For a first check, accelerate, coast and reverse; compare the engine checkbox off/on, then try F9/F10 and walk away to check the radio fade. Public-server and every custom-vehicle combination have not been tested.
 
 ## Source and credits
 
-Run `build.cmd` on Windows to build the helper with the .NET Framework x64 C# compiler. Sources are in `src/`. The script also updates the helper checksum in `manifest.json`.
+Run `build.cmd` on Windows to use the .NET Framework x64 C# compiler. Code is in `src/`; the build updates the helper checksum in `manifest.json`. Large WAV assets are distributed in the release ZIP rather than Git. For an audio-enabled source build, copy its `audio/` folder beside the compiled executable. GitHub's automatically generated source archives do not include those WAV files.
 
-Code is provided under the [MIT license](LICENSE.txt). Created with **OpenAI Codex assistance**. Tag-layout references: [XboxChaos/Assembly](https://github.com/XboxChaos/Assembly). Requires [Project Reclaimer](https://projectreclaimer.dev/); independent of and not endorsed by its developers.
+Code is [MIT licensed](LICENSE.txt). Supplied audio remains subject to its respective owners' rights; the code license does not grant redistribution rights to the recordings. Created with **OpenAI Codex assistance**. References: [XboxChaos/Assembly](https://github.com/XboxChaos/Assembly) and [Project Reclaimer](https://projectreclaimer.dev/). Independent of and not endorsed by Project Reclaimer's developers. See [README.txt](README.txt) for detailed behavior and earlier camera test results.

@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $cameraCompiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $cameraOutput = Join-Path $PSScriptRoot 'WarthogCamera.exe'
-& $cameraCompiler /nologo /target:winexe /platform:x64 /optimize+ "/out:$cameraOutput" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll (Join-Path $PSScriptRoot 'src\WarthogCamera.cs') (Join-Path $PSScriptRoot 'src\SeatCameraData.cs')
+& $cameraCompiler /nologo /target:winexe /platform:x64 /optimize+ "/out:$cameraOutput" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll (Join-Path $PSScriptRoot 'src\WarthogCamera.cs') (Join-Path $PSScriptRoot 'src\SeatCameraData.cs') (Join-Path $PSScriptRoot 'src\WarthogAudio.cs') (Join-Path $PSScriptRoot 'src\VehicleAudioTelemetry.cs') (Join-Path $PSScriptRoot 'src\WarthogEngineMute.cs')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $cameraManifestPath = Join-Path $PSScriptRoot 'manifest.json'
 $cameraManifest = Get-Content -LiteralPath $cameraManifestPath -Raw | ConvertFrom-Json

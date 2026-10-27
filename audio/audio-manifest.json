@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "sample_rate": 44100,
+  "channels": 1,
+  "bits_per_sample": 16,
+  "engine_clips": [
+    {
+      "name": "idle",
+      "file": "engine/idle.wav",
+      "anchor": 0.0,
+      "duration_seconds": 1.376576,
+      "source_start_seconds": 0.5,
+      "source_duration_seconds": 0.9,
+      "source_playback_rate": 0.62,
+      "approximate_idle": true,
+      "sha256": "4f1eff76fecab77c29ec21746ab6811732db5591ec3a8cb8e3bd6f9ff1a87e29",
+      "peak": 0.463989,
+      "rms": 0.139996,
+      "seam_delta": 0.002502
+    },
+    {
+      "name": "low",
+      "file": "engine/low.wav",
+      "anchor": 0.2,
+      "duration_seconds": 0.824989,
+      "source_start_seconds": 0.6,
+      "source_duration_seconds": 0.9,
+      "source_playback_rate": 1.0,
+      "approximate_idle": false,
+      "sha256": "529144eab275b0347b4d31cc9fbe48b05551fb7e9c5b0b26a851d425d5d3fa39",
+      "peak": 0.470459,
+      "rms": 0.139996,
+      "seam_delta": 0.007935
+    },
+    {
+      "name": "mid-low",
+      "file": "engine/mid-low.wav",
+      "anchor": 0.4,
+      "duration_seconds": 0.824989,
+      "source_start_seconds": 2.75,
+      "source_duration_seconds": 0.9,
+      "source_playback_rate": 1.0,
+      "approximate_idle": false,
+      "sha256": "123cbeba97dd74120edbb15a0608f9359e4b598fae6f2f8389e4f09bc1e0c07e",
+      "peak": 0.447113,
+      "rms": 0.139996,
+      "seam_delta": 0.013428
+    },
+    {
+      "name": "mid",
+      "file": "engine/mid.wav",
+      "anchor": 0.6,
+      "duration_seconds": 0.774989,
+      "source_start_seconds": 4.7,
+      "source_duration_seconds": 0.85,
+      "source_playback_rate": 1.0,
+      "approximate_idle": false,
+      "sha256": "7006dc9245dc0c6c0413ab42cba608520d31a4a887cd519e8206e0bddf7ddceb",
+      "peak": 0.514618,
+      "rms": 0.139996,
+      "seam_delta": 0.003998
+    },
+    {
+      "name": "mid-high",
+      "file": "engine/mid-high.wav",
+      "anchor": 0.8,
+      "duration_seconds": 0.774989,
+      "source_start_seconds": 7.05,
+      "source_duration_seconds": 0.85,
+      "source_playback_rate": 1.0,
+      "approximate_idle": false,
+      "sha256": "2e8e0f5af93d743909bacf6ab15a7aa381144097e6824939455bd14325676e76",
+      "peak": 0.525391,
+      "rms": 0.139996,
+      "seam_delta": 0.011505
+    },
+    {
+      "name": "high",
+      "file": "engine/high.wav",
+      "anchor": 1.0,
+      "duration_seconds": 0.774989,
+      "source_start_seconds": 9.15,
+      "source_duration_seconds": 0.85,
+      "source_playback_rate": 1.0,
+      "approximate_idle": false,
+      "sha256": "b2a29e9f93c99d00183056e12c9b1a00e8f32bec331fe12fd570fec39f2bfc61",
+      "peak": 0.418884,
+      "rms": 0.139996,
+      "seam_delta": 0.002441
+    }
+  ],
+  "radio_tracks": [
+    {
+      "title": "Rooster Metal Bells 3",
+      "file": "radio/01-rooster-metal-bells-3.wav",
+      "duration_seconds": 188.8,
+      "sha256": "1aa48d73a24a01f12ee219ce6bf74af70754324c2b0847941eb95be10a13267b"
+    },
+    {
+      "title": "Rooster test 3",
+      "file": "radio/02-rooster-test-3.wav",
+      "duration_seconds": 221.52,
+      "sha256": "53d4fe5a4d89183078d627b1197daea86100ce21baec09f5b699468d50d5dc41"
+    },
+    {
+      "title": "Rooster Bells",
+      "file": "radio/03-rooster-bells.wav",
+      "duration_seconds": 77.13351473922903,
+      "sha256": "1a0e163bfb29d2db1a816261b07c34c2a60afcdcb91fe2728b694f3535a89e12"
+    },
+    {
+      "title": "Rooster Thunder Bolt",
+      "file": "radio/04-rooster-thunder-bolt.wav",
+      "duration_seconds": 185.53351473922902,
+      "sha256": "74e7e372be30dea5dbe7994d3daee5e4306bd9c7c3ae152f86fdf3c2ae7319da"
+    }
+  ],
+  "notes": [
+    "Personal local audio; included in the v0.4.0 audio preview release.",
+    "Only the first acceleration sweep is used; the repeated second sweep is excluded.",
+    "Anchors are relative sound-band positions, not measured RPM values.",
+    "Source starts with the car already moving. Idle is a lower-pitched approximation.",
+    "Audio in this recording contains cabin/road noise; no isolated engine source is available.",
+    "Engine loops use 75ms crossfades and matched levels. Radio metadata and pictures are removed.",
+    "Radio stations are PCM16 stereo at 44100 Hz for native WinMM streaming. Package only WAV station files."
+  ]
+}

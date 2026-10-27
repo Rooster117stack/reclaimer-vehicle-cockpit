@@ -144,7 +144,7 @@ sealed class CameraSession : IDisposable {
     }
     ulong P(ulong a) { var p=Native.U64(Read(a,8));if(!Native.Ptr(p))throw new Exception("Waiting for loaded map data.");return p; }
     ulong Expand(Context c,uint compact) { var a=unchecked(c.Heap+(ulong)compact*4);if(!Native.Ptr(a))throw new Exception("Invalid compact tag pointer.");return a; }
-    Context Snapshot() {
+    internal Context Snapshot() {
         var h=Read(Base+HeaderRva,0x4000);
         if(Native.Z(h,0,4)!="daeh"||Native.U32(h,4)!=13||Native.Z(h,0x3ffc,4)!="toof")throw new Exception("Waiting for an MCC Halo 3 map.");
         var c=new Context {Header=h,Heap=P(Base+HeapRva),Table=P(Base+TableRva),Scenario=P(Base+ScenarioRva),Index=Native.U64(h,0x2e8),Name=Native.Z(h,0xe0,256)};
@@ -158,25 +158,25 @@ sealed class CameraSession : IDisposable {
         c.Key+=":"+fingerprint;
         return c;
     }
-    bool Same(Context c) {
+    internal bool Same(Context c) {
         try {return P(Base+HeapRva)==c.Heap&&Native.U64(Read(Base+HeaderRva+0x2e8,8))==c.Index&&CacheFiles.SameIdentity(Read(Base+HeaderRva,0x4000),c.Header);}
         catch {return false;}
     }
-    string Group(Context c,int i) {
+    internal string Group(Context c,int i) {
         int g=BitConverter.ToUInt16(c.Tags,i*8);if(g*16+4>c.Classes.Length)return "";
         return new string(Encoding.ASCII.GetString(c.Classes,g*16,4).Reverse().ToArray());
     }
-    ulong Tag(Context c,uint datum,string group) {
+    internal ulong Tag(Context c,uint datum,string group) {
         int i=(int)(datum&65535);
         if(i>=c.Count||BitConverter.ToUInt16(c.Tags,i*8+2)!=(datum>>16)||Group(c,i)!=group)throw new Exception("Unexpected camera model reference.");
         return Expand(c,Native.U32(c.Tags,i*8+4));
     }
-    ulong Block(Context c,ulong address,int maximum,out int count) {
+    internal ulong Block(Context c,ulong address,int maximum,out int count) {
         var b=Read(address,8);count=checked((int)Native.U32(b));
         if(count<0||count>maximum)throw new Exception("Unexpected camera block size.");
         return count==0?0:Expand(c,Native.U32(b,4));
     }
-    Dictionary<uint,string> Strings(Context c) {
+    internal Dictionary<uint,string> Strings(Context c) {
         string path=CacheFiles.Find(Maps,c.Header);Log("Map strings: "+path);
         using(var f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite)) {
             Func<long,int,byte[]> get=(o,n)=>{if(o<0||n<0||n>8*1024*1024||o+n>f.Length)throw new Exception("Invalid map string table.");f.Position=o;var b=new byte[n];int used=0;while(used<n){int k=f.Read(b,used,n-used);if(k==0)throw new EndOfStreamException();used+=k;}return b;};
@@ -400,21 +400,27 @@ sealed class CameraWindow : Form {
     [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr window,int id);
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out uint process);
-    const int HotkeyId=0x481;
-    readonly Label Status=new Label(),KeyStatus=new Label();
-    readonly CheckBox EnabledBox=new CheckBox(),ApproximateBox=new CheckBox();
+    const int HotkeyId=0x481,RadioHotkeyId=0x482,StationHotkeyId=0x483;
+    readonly Label Status=new Label(),KeyStatus=new Label(),AudioStatus=new Label();
+    readonly CheckBox EnabledBox=new CheckBox(),ApproximateBox=new CheckBox(),EngineBox=new CheckBox(),RadioBox=new CheckBox();
     readonly TextBox HotkeyBox=new TextBox();
-    readonly Timer Poll=new Timer(),KeyPoll=new Timer();
+    readonly Timer Poll=new Timer(),KeyPoll=new Timer(),AudioPoll=new Timer();
     readonly string SettingsPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"camera-settings.ini");
     Keys Binding=Keys.F8,PendingBinding=Keys.F8;
-    bool HotkeyRegistered,RegistrationAttempted,IsClosing;
+    bool HotkeyRegistered,RegistrationAttempted,IsClosing,RadioKeyRegistered,StationKeyRegistered;
     CameraSession Session;
+    VehicleAudioTelemetry Telemetry;
+    WarthogEngineMute EngineMute;
+    EngineLoopMixer EngineAudio;
+    WarthogRadio Radio;
+    string AudioError="",LastAudio="";
+    DateTime LastAudioLog;
     string Last="";
     readonly string LogPath;
     readonly int RequestedPid;
     readonly DateTime Deadline;
     internal CameraWindow(string[] args) {
-        Text="Vehicle Cockpit";ClientSize=new Size(600,290);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
+        Text="Vehicle Cockpit + Warthog Audio";ClientSize=new Size(600,465);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
         var folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs");Directory.CreateDirectory(folder);LogPath=Path.Combine(folder,"camera-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".log");
         for(int i=0;i<args.Length-1;i++){if(args[i]=="--pid")RequestedPid=int.Parse(args[i+1]);if(args[i]=="--seconds")Deadline=DateTime.UtcNow.AddSeconds(int.Parse(args[i+1]));}
         try {
@@ -423,6 +429,7 @@ sealed class CameraWindow : Form {
                 if(value!=null)Binding=CameraHotkey.Parse(value.Substring(11).Trim());
             }
         }catch(Exception e){Log("Invalid shortcut setting; using F8: "+e.Message);}
+        if(Binding==Keys.F9||Binding==Keys.F10){Binding=Keys.F8;Log("F9/F10 are now radio keys; camera shortcut uses F8.");}
         PendingBinding=Binding;
         EnabledBox.Text="First-person vehicle cameras";EnabledBox.Checked=true;EnabledBox.SetBounds(18,18,470,28);EnabledBox.Font=new Font("Segoe UI",11);Controls.Add(EnabledBox);
         ApproximateBox.Text="Approximate head camera when no cockpit camera exists";ApproximateBox.Checked=true;ApproximateBox.SetBounds(20,48,565,28);Controls.Add(ApproximateBox);
@@ -432,6 +439,12 @@ sealed class CameraWindow : Form {
         var save=new Button {Text="Save key"};save.SetBounds(315,147,100,29);Controls.Add(save);
         KeyStatus.SetBounds(20,184,560,34);KeyStatus.Text="Click the key box, press a shortcut, then Save key.";Controls.Add(KeyStatus);
         var note=new Label {Text="Toggle while the game is focused. Leave the helper open.\nUntick or close it to restore the original cameras."};note.SetBounds(20,232,560,48);Controls.Add(note);
+        EngineBox.Text="Warthog engine recording (native RPM)";EngineBox.Checked=true;EngineBox.SetBounds(20,283,560,25);Controls.Add(EngineBox);
+        RadioBox.Text="Radio on / off (F9)";RadioBox.SetBounds(20,315,260,25);Controls.Add(RadioBox);
+        var next=new Button {Text="Next station (F10)"};next.SetBounds(315,312,180,29);Controls.Add(next);next.Click+=(s,e)=>NextStation();
+        AudioStatus.SetBounds(20,351,560,96);AudioStatus.Text="Audio waits for a supported Warthog. Radio starts off.";Controls.Add(AudioStatus);
+        EngineBox.CheckedChanged+=(s,e)=>UpdateAudio();
+        RadioBox.CheckedChanged+=(s,e)=>{if(Radio!=null)Radio.Enabled=RadioBox.Checked;Log("RADIO "+(RadioBox.Checked?"ON":"OFF"));UpdateAudio();};
         HotkeyBox.Enter+=(s,e)=>{ReleaseHotkey();RegistrationAttempted=false;};
         HotkeyBox.Leave+=(s,e)=>{RegistrationAttempted=false;};
         HotkeyBox.KeyDown+=(s,e)=>{
@@ -443,23 +456,27 @@ sealed class CameraWindow : Form {
         EnabledBox.CheckedChanged+=(s,e)=>UpdateSession();ApproximateBox.CheckedChanged+=(s,e)=>UpdateSession();
         Poll.Interval=750;Poll.Tick+=(s,e)=>UpdateSession();Poll.Start();
         KeyPoll.Interval=120;KeyPoll.Tick+=(s,e)=>SyncHotkey();KeyPoll.Start();
-        FormClosing+=(s,e)=>{IsClosing=true;Poll.Stop();KeyPoll.Stop();ReleaseHotkey();if(Session!=null)Session.Dispose();};
-        Log("Helper 0.3.2. Vehicle camera data; compatible Reclaimer clients with verified MCC Halo 3 1.3528.0.0 engine. Toggle "+CameraHotkey.Format(Binding));
+        AudioPoll.Interval=50;AudioPoll.Tick+=(s,e)=>UpdateAudio();AudioPoll.Start();
+        FormClosing+=(s,e)=>{IsClosing=true;Poll.Stop();KeyPoll.Stop();AudioPoll.Stop();ReleaseHotkey();CloseSession();if(EngineAudio!=null)EngineAudio.Dispose();if(Radio!=null)Radio.Dispose();};
+        Log("Helper 0.4.0 local audio. Verified MCC Halo 3 1.3528.0.0. Camera "+CameraHotkey.Format(Binding)+"; radio F9; station F10.");
     }
     bool AllowedForeground() {
         uint process;GetWindowThreadProcessId(GetForegroundWindow(),out process);
         return process==(uint)Process.GetCurrentProcess().Id||(Session!=null&&process==(uint)Session.Process.Id);
     }
-    void ReleaseHotkey(){if(HotkeyRegistered){UnregisterHotKey(Handle,HotkeyId);HotkeyRegistered=false;}}
+    void ReleaseHotkey(){if(HotkeyRegistered){UnregisterHotKey(Handle,HotkeyId);HotkeyRegistered=false;}if(RadioKeyRegistered){UnregisterHotKey(Handle,RadioHotkeyId);RadioKeyRegistered=false;}if(StationKeyRegistered){UnregisterHotKey(Handle,StationHotkeyId);StationKeyRegistered=false;}}
     bool RegisterBinding(Keys binding){return RegisterHotKey(Handle,HotkeyId,CameraHotkey.Modifiers(binding),(uint)(binding&Keys.KeyCode));}
     void SyncHotkey() {
         if(IsClosing)return;
         if(HotkeyBox.Focused||!AllowedForeground()){ReleaseHotkey();RegistrationAttempted=false;return;}
+        if(!RadioKeyRegistered)RadioKeyRegistered=RegisterHotKey(Handle,RadioHotkeyId,0x4000,(uint)Keys.F9);
+        if(!StationKeyRegistered)StationKeyRegistered=RegisterHotKey(Handle,StationHotkeyId,0x4000,(uint)Keys.F10);
         if(HotkeyRegistered||RegistrationAttempted)return;
         RegistrationAttempted=true;HotkeyRegistered=RegisterBinding(Binding);
         if(!HotkeyRegistered){KeyStatus.Text="Toggle shortcut is in use. Choose another key; the checkbox still works.";Log("Shortcut registration failed: "+Marshal.GetLastWin32Error());}
     }
     void SaveHotkey() {
+        if(PendingBinding==Keys.F9||PendingBinding==Keys.F10){KeyStatus.Text="F9 and F10 control the radio. Choose another camera shortcut.";return;}
         Keys old=Binding;ReleaseHotkey();RegistrationAttempted=true;
         if(!RegisterBinding(PendingBinding)) {
             int error=Marshal.GetLastWin32Error();HotkeyRegistered=RegisterBinding(old);
@@ -472,6 +489,10 @@ sealed class CameraWindow : Form {
         }catch(Exception e){ReleaseHotkey();HotkeyRegistered=RegisterBinding(old);KeyStatus.Text="Cannot save shortcut: "+e.Message;}
     }
     protected override void WndProc(ref Message message) {
+        if(message.Msg==0x0312&&!HotkeyBox.Focused&&AllowedForeground()) {
+            if(message.WParam.ToInt32()==RadioHotkeyId)RadioBox.Checked=!RadioBox.Checked;
+            if(message.WParam.ToInt32()==StationHotkeyId)NextStation();
+        }
         if(message.Msg==0x0312&&message.WParam.ToInt32()==HotkeyId&&!HotkeyBox.Focused&&AllowedForeground()) {
             Log("HOTKEY "+CameraHotkey.Format(Binding)+" -> "+(!EnabledBox.Checked?"ON":"OFF"));EnabledBox.Checked=!EnabledBox.Checked;
         }
@@ -480,16 +501,57 @@ sealed class CameraWindow : Form {
     protected override void OnHandleDestroyed(EventArgs e){ReleaseHotkey();base.OnHandleDestroyed(e);}
     void Log(string text){File.AppendAllText(LogPath,DateTime.UtcNow.ToString("o")+" "+text+Environment.NewLine);}
     void ShowStatus(string text){Status.Text=text;if(text!=Last){Log(text);Last=text;}}
+    void NextStation(){try{if(Radio!=null){Radio.Next();Log("RADIO STATION "+Radio.Station);}UpdateAudio();}catch(Exception e){AudioStatus.Text=e.Message;Log("RADIO "+e.Message);}}
+    void CloseSession() {
+        if(EngineAudio!=null)EngineAudio.Set(0,0);
+        if(Radio!=null)try{Radio.Update(0);}catch{}
+        Telemetry=null;
+        if(EngineMute!=null){EngineMute.Dispose();EngineMute=null;}
+        if(Session!=null){Session.Dispose();Session=null;}
+    }
+    void UpdateAudio() {
+        if(IsClosing)return;
+        try {
+            if(Session==null||Telemetry==null||EngineMute==null) {
+                if(EngineAudio!=null)EngineAudio.Set(0,0);if(Radio!=null)Radio.Update(0);return;
+            }
+            var frame=Telemetry.ReadFrame();
+            bool engine=EngineBox.Checked&&AudioError==""&&EngineAudio!=null&&EngineAudio.Error==null&&frame.Valid&&!frame.EngineFunctionsOverridden&&frame.NearbyEngines.Count>0&&frame.NearbyEngines.All(x=>x.HasNativeRpm&&EngineMute.CanMute(x.WarthogTagDatum));
+            // Native caches share sound function blocks across Warthog variants.
+            // Render every nearby running Warthog, not just the radio's closest one.
+            EngineMute.SetEnabled(engine);
+            if(EngineAudio!=null)EngineAudio.SetVoices(engine?frame.NearbyEngines.Where(x=>x.HasNativeRpm&&x.EngineRunning&&EngineMute.CanMute(x.WarthogTagDatum)).OrderBy(x=>x.Distance).Take(8).Select(x=>new EngineAudioVoice(x.EngineRpmNormalized,WarthogAudioLevels.EngineGain(frame.InWarthog&&frame.WarthogDatum==x.WarthogDatum,x.Distance)*x.EnginePower)):Enumerable.Empty<EngineAudioVoice>());
+            if(Radio!=null){Radio.Enabled=RadioBox.Checked;Radio.Update(frame.Valid?WarthogAudioLevels.RadioGain(frame.InWarthog,frame.Distance):0);}
+            string state=frame.Valid?(frame.InWarthog?"In Warthog":("Nearest Warthog: "+(frame.Distance*3).ToString("0.0")+" m")):frame.Error;
+            string text=state+"\nEngine: "+(engine?"recording / native RPM "+(frame.EngineRpmNormalized*100).ToString("0")+"%":EngineBox.Checked?"waiting; original sound retained":"original Halo sound")+"\nRadio: "+(RadioBox.Checked&&Radio!=null?Radio.Station:"off");
+            if(AudioError!="")text+="\n"+AudioError;
+            if(EngineAudio!=null&&EngineAudio.Error!=null)text+="\n"+EngineAudio.Error;
+            AudioStatus.Text=text;
+            string key=frame.Valid+":"+frame.InWarthog+":"+frame.WarthogDatum+":"+engine+":"+RadioBox.Checked;
+            if(key!=LastAudio||DateTime.UtcNow-LastAudioLog>TimeSpan.FromSeconds(5)) {Log("AUDIO "+text.Replace('\n',' '));LastAudio=key;LastAudioLog=DateTime.UtcNow;}
+        }catch(Exception e) {
+            if(EngineAudio!=null)EngineAudio.Set(0,0);
+            if(EngineMute!=null)EngineMute.Restore();
+            if(Radio!=null)try{Radio.Update(0);}catch{}
+            AudioStatus.Text="Audio paused: "+e.Message;
+            if(LastAudio!=e.Message){Log("AUDIO PAUSED "+e.Message);LastAudio=e.Message;}
+        }
+    }
     void UpdateSession() {
         if(Deadline!=default(DateTime)&&DateTime.UtcNow>=Deadline){Close();return;}
         try {
-            if(Session!=null&&Session.Process.HasExited){Session.Dispose();Session=null;}
+            if(Session!=null&&Session.Process.HasExited)CloseSession();
             if(Session==null) {
                 var list=Process.GetProcesses().Where(p=>{try{return p.ProcessName.IndexOf("reclaimer",StringComparison.OrdinalIgnoreCase)>=0&&p.MainWindowHandle!=IntPtr.Zero&&p.MainWindowTitle.StartsWith("Project Reclaimer")&&(RequestedPid==0||p.Id==RequestedPid);}catch{return false;}}).ToArray();
                 if(list.Length!=1){ShowStatus(list.Length==0?"Waiting for a Reclaimer game window...":"Multiple game clients found. Close the extra client.");return;}
                 Session=new CameraSession(list[0],Log);
+                EngineMute=new WarthogEngineMute(Session,Log);
+                Telemetry=new VehicleAudioTelemetry(Session,EngineMute.IsWarthog,EngineMute.MaxAngularVelocity);
+                if(Radio==null)Radio=new WarthogRadio(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"audio","radio"));
+                if(EngineAudio==null&&AudioError=="")try{EngineAudio=new EngineLoopMixer(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"audio","engine"));}catch(Exception audioFailure){AudioError=audioFailure.Message;Log("AUDIO INIT "+AudioError);}
             }
             ShowStatus(Session.Tick(EnabledBox.Checked,ApproximateBox.Checked));
+            try{EngineMute.Refresh();}catch(Exception audioFailure){EngineMute.Restore();AudioStatus.Text="Audio waiting: "+audioFailure.Message;}
         } catch(Exception e){ShowStatus(e.Message);}
     }
 }

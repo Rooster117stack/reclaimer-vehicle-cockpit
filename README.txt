@@ -1,5 +1,40 @@
-VEHICLE COCKPIT - PERSONAL CAMERA HELPER 0.3.2
+VEHICLE COCKPIT + WARTHOG AUDIO - 0.4.0 PREVIEW
 For Project Reclaimer / MCC Halo 3 1.3528.0.0 on Windows x64.
+WARTHOG ENGINE + RADIO
+Launch PLAY_FIRST_PERSON.cmd as usual. Keep the whole audio folder beside the EXE.
+- F8: cockpit cameras on/off (your saved camera shortcut still works unless F9/F10).
+- F9: radio on/off. It starts off.
+- F10: next station, cycling through the four supplied songs.
+- Untick "Warthog engine recording" in the helper to restore Halo's engine sound.
+
+The engine uses six crossfaded loops cut only from the first rev sweep in the
+supplied recording. Native Warthog engine speed selects the sound bands; road
+speed does not stand in for RPM. Engine power gates playback, so an empty,
+switched-off Warthog stays silent. The recording starts already moving; its idle
+loop is a lowered-pitch approximation. This changes sound, not the transmission.
+
+The radio follows your seated Warthog, otherwise the nearest supported Warthog.
+It is loudest in any seat, quieter outside, and silent beyond about 12 metres.
+Each song is a looping station; leaving range or switching off pauses it.
+Only your PC hears it. Friends do not need this for your audio to work.
+There is no shared server radio state, wall occlusion, or directional stereo pan.
+
+Stock and the installed HugeGrass Warthog chassis are recognized. Future maps
+need a readable matching cache and the same supported Warthog sound layout.
+Unknown layouts retain original engine sounds; the camera feature is independent.
+The native engine function is shared across Warthog variants: while replacement
+is active it is muted for those variants, and up to eight nearby running engines
+are rendered locally within about 60 metres. Tire, collision and turret sounds
+and non-Warthog cars are preserved. A future engine DLL change still needs review.
+
+Close the helper normally to restore camera and engine-sound data. If it is force
+closed, restart Reclaimer. No MCC/Reclaimer game files are changed. This preview
+includes the supplied music. Download the complete ZIP from the v0.4.0 GitHub release.
+
+FIRST CHECK
+Enter a Warthog, accelerate, coast and reverse. Compare the engine checkbox off/on.
+Press F9, then F10; exit the vehicle and walk away to check the radio fade.
+The driving/listening check remains pending; see TEST STATUS below.
 
 PLAY
 1. Extract the entire ZIP into a writable folder. Install your own MCC with Halo 3.
@@ -20,7 +55,7 @@ mod is required; this affects only the client running the helper.
 TOGGLE KEY
 F8 is the default. To change it, click the box beside "Toggle key:", press your
 shortcut, then click "Save key". Settings are saved in camera-settings.ini beside
-the helper. Use plain F1-F11 or a key with Ctrl, Alt or Shift; F12 is reserved.
+the helper. Use F1-F11 except F9/F10, or a modified shortcut; F9/F10 control the radio and F12 is reserved.
 The shortcut acts only while the game or helper is focused. Some seats need an
 exit and re-entry before a changed camera takes effect. Leave the helper open.
 
@@ -59,7 +94,7 @@ If a future engine or layout changes, the helper stops safely and may need an
 update. Automatic downloads cannot guarantee compatibility with every future
 engine change. This targets Reclaimer, not Steam MCC matchmaking, and
 is shared separately from Reclaimer's automatic map/mod downloads.
-Writes are limited to loaded camera data, with verified readback and restoration.
+Writes are limited to loaded camera data and guarded Warthog engine-sound object functions, with verified readback and restoration.
 Approximate cameras use read/write data allocations only: no executable-page patch,
 DLL injection, input injection, physics edits or anti-cheat bypass is included.
 Normal close restores matching original fields. Allocations with uncertain live
@@ -88,7 +123,7 @@ Individual viewpoints and every public server/mod have not been visually tested.
 
 SOURCE AND CREDITS
 MIT license: LICENSE.txt. Build: build.cmd; sources: src\WarthogCamera.cs and
-src\SeatCameraData.cs. Created with OpenAI Codex assistance; no game assets included.
+src\SeatCameraData.cs, src\WarthogAudio.cs, src\VehicleAudioTelemetry.cs and src\WarthogEngineMute.cs. Created with OpenAI Codex assistance; no game assets included. Supplied audio is separate from the code license.
 Layouts: https://github.com/XboxChaos/Assembly | https://projectreclaimer.dev/
 Official releases: https://github.com/ProjectReclaimer/project-reclaimer-releases/releases/latest
 Independent of, and not endorsed by, the Project Reclaimer developers.
