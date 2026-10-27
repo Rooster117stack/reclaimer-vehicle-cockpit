@@ -420,7 +420,7 @@ sealed class CameraWindow : Form {
     readonly int RequestedPid;
     readonly DateTime Deadline;
     internal CameraWindow(string[] args) {
-        Text="Vehicle Cockpit + Warthog Audio";ClientSize=new Size(600,465);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
+        Text="Vehicle Cockpit + Warthog Audio 0.4.2";ClientSize=new Size(600,465);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
         var folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs");Directory.CreateDirectory(folder);LogPath=Path.Combine(folder,"camera-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".log");
         for(int i=0;i<args.Length-1;i++){if(args[i]=="--pid")RequestedPid=int.Parse(args[i+1]);if(args[i]=="--seconds")Deadline=DateTime.UtcNow.AddSeconds(int.Parse(args[i+1]));}
         try {
@@ -458,7 +458,7 @@ sealed class CameraWindow : Form {
         KeyPoll.Interval=120;KeyPoll.Tick+=(s,e)=>SyncHotkey();KeyPoll.Start();
         AudioPoll.Interval=50;AudioPoll.Tick+=(s,e)=>UpdateAudio();AudioPoll.Start();
         FormClosing+=(s,e)=>{IsClosing=true;Poll.Stop();KeyPoll.Stop();AudioPoll.Stop();ReleaseHotkey();CloseSession();if(EngineAudio!=null)EngineAudio.Dispose();if(Radio!=null)Radio.Dispose();};
-        Log("Helper 0.4.0 local audio. Verified MCC Halo 3 1.3528.0.0. Camera "+CameraHotkey.Format(Binding)+"; radio F9; station F10.");
+        Log("Helper 0.4.2 audio player detection fix. Verified MCC Halo 3 1.3528.0.0. Camera "+CameraHotkey.Format(Binding)+"; radio F9; station F10.");
     }
     bool AllowedForeground() {
         uint process;GetWindowThreadProcessId(GetForegroundWindow(),out process);
@@ -520,7 +520,7 @@ sealed class CameraWindow : Form {
             // Native caches share sound function blocks across Warthog variants.
             // Render every nearby running Warthog, not just the radio's closest one.
             EngineMute.SetEnabled(engine);
-            if(EngineAudio!=null)EngineAudio.SetVoices(engine?frame.NearbyEngines.Where(x=>x.HasNativeRpm&&x.EngineRunning&&EngineMute.CanMute(x.WarthogTagDatum)).OrderBy(x=>x.Distance).Take(8).Select(x=>new EngineAudioVoice(x.EngineRpmNormalized,WarthogAudioLevels.EngineGain(frame.InWarthog&&frame.WarthogDatum==x.WarthogDatum,x.Distance)*x.EnginePower)):Enumerable.Empty<EngineAudioVoice>());
+            if(EngineAudio!=null)EngineAudio.SetVoices(engine?frame.NearbyEngines.Where(x=>x.HasNativeRpm&&x.EngineRunning&&EngineMute.CanMute(x.WarthogTagDatum)).OrderBy(x=>x.Distance).Take(8).Select(x=>new EngineAudioVoice(x.WarthogDatum,x.EngineRpmNormalized,WarthogAudioLevels.EngineGain(frame.InWarthog&&frame.WarthogDatum==x.WarthogDatum,x.Distance)*x.EnginePower)):Enumerable.Empty<EngineAudioVoice>());
             if(Radio!=null){Radio.Enabled=RadioBox.Checked;Radio.Update(frame.Valid?WarthogAudioLevels.RadioGain(frame.InWarthog,frame.Distance):0);}
             string state=frame.Valid?(frame.InWarthog?"In Warthog":("Nearest Warthog: "+(frame.Distance*3).ToString("0.0")+" m")):frame.Error;
             string text=state+"\nEngine: "+(engine?"recording / native RPM "+(frame.EngineRpmNormalized*100).ToString("0")+"%":EngineBox.Checked?"waiting; original sound retained":"original Halo sound")+"\nRadio: "+(RadioBox.Checked&&Radio!=null?Radio.Station:"off");

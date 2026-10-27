@@ -8,9 +8,11 @@ using System.Threading;
 
 // Local output only. Never installs an audio driver or changes Windows/game volume.
 sealed class EngineAudioVoice {
+    internal uint Identity=uint.MaxValue;
     internal float Rev,Gain;
     internal EngineAudioVoice(){}
     internal EngineAudioVoice(float rev,float gain){Rev=rev;Gain=gain;}
+    internal EngineAudioVoice(uint identity,float rev,float gain){Identity=identity;Rev=rev;Gain=gain;}
 }
 
 sealed class EngineLoopMixer : IDisposable {
@@ -30,8 +32,13 @@ sealed class EngineLoopMixer : IDisposable {
     [DllImport("winmm.dll")] static extern uint waveOutClose(IntPtr device);
     const int Frames=1024;
     readonly float[][] Loops;
-    readonly int[][] Positions;
+    readonly double[][] Positions;
+    // Source-loop fundamentals, paired with audio/audio-manifest.json.
+    // The preparation step removes the recorded acceleration inside each loop.
+    static readonly double[] BasePitch=new[]{3033,1877,1734,1479,1063,875}.Select(period=>44100.0/period).ToArray();
+    readonly uint[] Identities=Enumerable.Repeat(uint.MaxValue,8).ToArray();
     readonly float[] Revs=new float[8],Volumes=new float[8];
+    readonly float[] TargetRevs=new float[8],TargetVolumes=new float[8];
     readonly IntPtr[] Headers=new IntPtr[4],Buffers=new IntPtr[4];
     readonly uint HeaderSize=(uint)Marshal.SizeOf(typeof(WaveHeader));
     readonly Thread Worker;
@@ -39,13 +46,14 @@ sealed class EngineLoopMixer : IDisposable {
     volatile bool Stopping;
     volatile EngineAudioVoice[] Targets=new EngineAudioVoice[0];
     internal volatile string Error;
-    internal EngineLoopMixer(string directory) {
+    internal EngineLoopMixer(string directory):this(directory,true){}
+    internal EngineLoopMixer(string directory,bool openDevice) {
         Loops=new[]{"idle.wav","low.wav","mid-low.wav","mid.wav","mid-high.wav","high.wav"}.Select(n=>ReadPcm(Path.Combine(directory,n))).ToArray();
-        Positions=new int[8][];
+        Positions=new double[8][];
         for(int v=0;v<Positions.Length;v++) {
-            Positions[v]=new int[Loops.Length];
-            for(int l=0;l<Loops.Length;l++)Positions[v][l]=(v*9973+l*1223)%Loops[l].Length;
+            Positions[v]=new double[Loops.Length];
         }
+        if(!openDevice)return; // Deterministic render tests without opening speakers.
         var format=new WaveFormat{Format=1,Channels=1,Rate=44100,BytesPerSecond=88200,Align=2,Bits=16};
         Check(waveOutOpen(out Device,uint.MaxValue,ref format,IntPtr.Zero,IntPtr.Zero,0),"open audio output");
         try {
@@ -87,20 +95,46 @@ sealed class EngineLoopMixer : IDisposable {
     }
     internal void SetVoices(IEnumerable<EngineAudioVoice> voices) {
         Targets=voices==null?new EngineAudioVoice[0]:voices.Where(v=>v!=null).Take(8)
-            .Select(v=>new EngineAudioVoice(FiniteClamp(v.Rev),FiniteClamp(v.Gain))).ToArray();
+            .Select((v,i)=>new EngineAudioVoice(v.Identity==uint.MaxValue?(uint)i:v.Identity,FiniteClamp(v.Rev),FiniteClamp(v.Gain)))
+            .GroupBy(v=>v.Identity).Select(g=>g.First()).ToArray();
     }
     static float FiniteClamp(float f){return float.IsNaN(f)||float.IsInfinity(f)?0:Math.Max(0,Math.Min(1,f));}
+    void AssignVoices(EngineAudioVoice[] targets) {
+        Array.Clear(TargetVolumes,0,TargetVolumes.Length);
+        foreach(var target in targets) {
+            int slot=Array.IndexOf(Identities,target.Identity);
+            if(slot<0) {
+                // Keep a vehicle's phase/RPM when its distance ordering changes.
+                slot=Enumerable.Range(0,Identities.Length).Where(i=>!targets.Any(t=>t.Identity==Identities[i]))
+                    .OrderBy(i=>Volumes[i]).First();
+                Identities[slot]=target.Identity;Revs[slot]=target.Rev;Volumes[slot]=0;
+                double phase=(target.Identity*0.618033988749895)%1;
+                for(int i=0;i<Loops.Length;i++)Positions[slot][i]=phase*44100/BasePitch[i];
+            }
+            TargetRevs[slot]=target.Rev;TargetVolumes[slot]=target.Gain;
+        }
+    }
+    float Sample(int loop,double position) {
+        int index=(int)position,next=index+1;if(next==Loops[loop].Length)next=0;
+        return Loops[loop][index]+(Loops[loop][next]-Loops[loop][index])*(float)(position-index);
+    }
     internal void Render(short[] output) {
-        EngineAudioVoice[] targets=Targets;
+        AssignVoices(Targets);
         for(int f=0;f<output.Length;f++) {
             float sample=0;
             for(int v=0;v<Positions.Length;v++) {
-                float targetRev=v<targets.Length?targets[v].Rev:0,targetVolume=v<targets.Length?targets[v].Gain:0;
-                Revs[v]+=(targetRev-Revs[v])*0.0007f;Volumes[v]+=(targetVolume-Volumes[v])*0.0015f;
+                // About 100ms RPM response: suppress jitter, retain real automatic shifts.
+                Revs[v]+=(TargetRevs[v]-Revs[v])*0.00023f;Volumes[v]+=(TargetVolumes[v]-Volumes[v])*0.0015f;
+                if(Volumes[v]<0.000001f&&TargetVolumes[v]==0)continue;
                 float band=Revs[v]*(Loops.Length-1);int lo=Math.Min(Loops.Length-2,(int)band);float fraction=band-lo;
-                // Independent phase per nearby engine and equal-power band blending.
-                sample+=(Loops[lo][Positions[v][lo]]*(float)Math.Sqrt(1-fraction)+Loops[lo+1][Positions[v][lo+1]]*(float)Math.Sqrt(fraction))*Volumes[v];
-                for(int i=0;i<Loops.Length;i++)if(++Positions[v][i]>=Loops[i].Length)Positions[v][i]=0;
+                double pitch=BasePitch[lo]+(BasePitch[lo+1]-BasePitch[lo])*fraction;
+                // Both textures run at the SAME continuously changing pitch. Never
+                // replay a recorded rev climb or reset phase at an RPM/band update.
+                sample+=(Sample(lo,Positions[v][lo])*(1-fraction)+Sample(lo+1,Positions[v][lo+1])*fraction)*Volumes[v];
+                for(int i=0;i<Loops.Length;i++) {
+                    Positions[v][i]+=pitch/BasePitch[i];
+                    if(Positions[v][i]>=Loops[i].Length)Positions[v][i]-=Loops[i].Length;
+                }
             }
             // Smooth limiter preserves headroom when several nearby engines add.
             output[f]=(short)(30000*Math.Tanh(sample*26000/30000));

@@ -1,17 +1,23 @@
-VEHICLE COCKPIT + WARTHOG AUDIO - 0.4.0 PREVIEW
+VEHICLE COCKPIT + WARTHOG AUDIO - 0.4.2
 For Project Reclaimer / MCC Halo 3 1.3528.0.0 on Windows x64.
 WARTHOG ENGINE + RADIO
 Launch PLAY_FIRST_PERSON.cmd as usual. Keep the whole audio folder beside the EXE.
+The helper window title should show 0.4.2. This build fixes audio detection when
+the helper starts before joining a match. When seated in a supported Warthog,
+the audio status should say "Engine: recording / native RPM ...".
 - F8: cockpit cameras on/off (your saved camera shortcut still works unless F9/F10).
 - F9: radio on/off. It starts off.
 - F10: next station, cycling through the four supplied songs.
 - Untick "Warthog engine recording" in the helper to restore Halo's engine sound.
 
-The engine uses six crossfaded loops cut only from the first rev sweep in the
-supplied recording. Native Warthog engine speed selects the sound bands; road
-speed does not stand in for RPM. Engine power gates playback, so an empty,
-switched-off Warthog stays silent. The recording starts already moving; its idle
-loop is a lowered-pitch approximation. This changes sound, not the transmission.
+The engine uses six steady textures prepared from the first rev sweep in the
+supplied recording. Version 0.4.1 removes each clip's recorded rise in pitch and
+volume, then continuously changes playback pitch with native Warthog engine RPM.
+This prevents the short repeated rev-up/reset heard in 0.4.0. Genuine automatic
+gear shifts can still lower RPM as the vehicle accelerates. Engine power gates
+playback, so an empty, switched-off Warthog stays silent. The recording starts
+already moving; idle is a lowered-pitch approximation. No transmission changes.
+Install the complete folder: use the 0.4.2 EXE with these revised engine WAVs.
 
 The radio follows your seated Warthog, otherwise the nearest supported Warthog.
 It is loudest in any seat, quieter outside, and silent beyond about 12 metres.
@@ -28,13 +34,13 @@ are rendered locally within about 60 metres. Tire, collision and turret sounds
 and non-Warthog cars are preserved. A future engine DLL change still needs review.
 
 Close the helper normally to restore camera and engine-sound data. If it is force
-closed, restart Reclaimer. No MCC/Reclaimer game files are changed. This preview
-includes the supplied music. Download the complete ZIP from the v0.4.0 GitHub release.
+closed, restart Reclaimer. No MCC/Reclaimer game files are changed. This release
+includes the supplied music. Use the complete v0.4.2 release ZIP, including audio/.
 
 FIRST CHECK
 Enter a Warthog, accelerate, coast and reverse. Compare the engine checkbox off/on.
 Press F9, then F10; exit the vehicle and walk away to check the radio fade.
-The driving/listening check remains pending; see TEST STATUS below.
+The owner confirmed the corrected build working in game on 2026-10-27.
 
 PLAY
 1. Extract the entire ZIP into a writable folder. Install your own MCC with Halo 3.
@@ -55,7 +61,7 @@ mod is required; this affects only the client running the helper.
 TOGGLE KEY
 F8 is the default. To change it, click the box beside "Toggle key:", press your
 shortcut, then click "Save key". Settings are saved in camera-settings.ini beside
-the helper. Use F1-F11 except F9/F10, or a modified shortcut; F9/F10 control the radio and F12 is reserved.
+the helper. Use F1-F11 except F9/F10, or a modified shortcut; F12 is reserved.
 The shortcut acts only while the game or helper is focused. Some seats need an
 exit and re-entry before a changed camera takes effect. Leave the helper open.
 
@@ -102,6 +108,18 @@ references stay until game exit. If force-killed, restart the game to clear chan
 To uninstall, close the helper and delete its folder. Older packages are preserved.
 
 TEST STATUS
+0.4.2: Fixed stale process-thread enumeration when attaching in the menu before
+a match starts. Seven real Windows thread-cache regression checks passed. Local
+player identity and memory-layout checks remain in place; retry status now keeps
+the actual detection error. Engine-loop and radio code/assets are unchanged from
+0.4.1. The owner confirmed the corrected build working in game on 2026-10-27.
+0.4.1: 34 rendered-audio regression checks passed: sustained RPM across loop
+seams, continuous acceleration across bands, RPM drop/recovery, repeated state
+updates, changing distance order, invalid controls and eight nearby engines.
+86 audio checks passed including silent Windows output streaming and all radio
+stations. These used controlled RPM inputs; subsequent owner testing confirmed
+the 0.4.2 build working in game. Native telemetry, muting, camera behavior and radio
+playback code are unchanged from the user's working 0.4.0 build.
 0.3.2: In a local HugeGrass Rebalance match, comparison against 0.3.1 confirmed only
 the Sabre driver's camera reference changed and one pilot-head marker was added.
 All 439 other seat definitions and unrelated marker groups matched. Original

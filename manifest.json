@@ -1,16 +1,16 @@
 {
   "name": "Vehicle Cockpit Personal Helper",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "reclaimer_version": "automatic-latest-stable",
   "mcc_halo3_version": "1.3528.0.0",
   "tested_reclaimer_version": "0.9.23",
   "halo3_sha256": "B209D8454B12DC77E54CCD2C9924EC8D44B8619D21CF98E36FFAF601E67EFB63",
-  "helper_sha256": "59DB886F9F1D238D98DDCE43524A75CCE78CC0C2EB3A70A12A7176A466CEE1BF",
+  "helper_sha256": "5112FE2B52210589430B9EC52916E8BF9C9987774B07CF35C23C2AF1B6294216",
   "scope": "client-local vehicle cameras; native-RPM Warthog engine recording and nearby radio",
   "license": "MIT",
   "compatibility": "Reclaimer client versions accepted while verified Halo 3 engine/layout stays compatible",
   "toggle_key_default": "F8",
   "radio_toggle_key": "F9",
   "radio_next_key": "F10",
-  "release_status": "preview; driving/listening and new-hotkey gameplay checks pending"
+  "release_status": "owner-confirmed working in game on 2026-10-27"
 }

@@ -2,9 +2,15 @@
 
 Client-local first-person vehicle cameras for Halo 3 in Project Reclaimer, plus a Warthog engine recording driven by native engine speed and a nearby radio with four songs. Driver, passenger and turret cameras work where the vehicle's camera data permits them.
 
-**[Download the v0.4.0 audio preview](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.0)** — choose **VehicleCockpitWarthogAudio-0.4.0.zip** under Assets. The ZIP includes all engine loops and radio tracks. **Driving/listening and new-hotkey gameplay checks are still pending.**
+**[Download v0.4.2](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.2)** — choose **VehicleCockpitWarthogAudio-0.4.2.zip** under Assets. The ZIP includes all engine loops and radio tracks. The owner confirmed the corrected build working in game on **2026-10-27**.
 
-The previous **[v0.3.2 camera-only release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2)** remains available unchanged.
+The earlier [v0.4.0 preview](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.0) and [v0.3.2 camera-only release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2) remain available unchanged.
+
+## Changes in 0.4.2
+
+- Removes the repeated short rev-up/reset: steady source-derived loops now change pitch continuously with native engine RPM.
+- Fixes audio staying on Halo's default engine sound when the helper starts before joining a match.
+- Preserves the existing cockpit cameras and radio. The helper window title shows **0.4.2**.
 
 ## Play
 
@@ -21,7 +27,7 @@ Friends need the complete ZIP and their own game. No host-side mod is required f
 
 ## Engine and radio
 
-Six crossfaded sound bands use only the first rev sweep of the supplied recording; its repeated second sweep is excluded. The helper reads native Warthog engine speed and power. It changes audio, not vehicle physics or gearing. The recording begins with the car already moving, so idle is a lowered-pitch approximation, and cabin/road noise remains in the samples.
+Six steady sound textures use only the first rev sweep of the supplied recording; its repeated second sweep is excluded. The captured rise in pitch and volume is removed before looping, then playback pitch continuously follows native Warthog engine speed. Genuine automatic gear shifts can still lower RPM during acceleration. Native engine power gates playback. It changes audio, not vehicle physics or gearing. The recording begins with the car already moving, so idle is a lowered-pitch approximation, and cabin/road noise remains in the samples.
 
 The radio follows your seated Warthog, otherwise the nearest supported Warthog. It is louder in any seat and fades to silence at approximately **12 metres** outside. Each of the four songs is a looping station; switching off or leaving range pauses it. Only the person running the helper hears it. There is no synchronized server radio state, wall occlusion or directional stereo pan.
 
@@ -39,7 +45,9 @@ The launcher follows official stable Reclaimer updates, but the exact Halo 3 eng
 
 The audio build passed 86 checks covering silent real-device playback, four stations, looping, pause/resume/next, distance gains and multiple-engine blending. Live stationary-player/Warthog telemetry passed. Native engine analysis established the RPM and engine-mute paths. Closing the helper restored all 20 tested vehicle definitions/cameras and the Warthog engine-sound function exactly. Cache checks covered stock Valhalla and HugeGrass.
 
-**Still pending:** an actual seated driving/listening comparison and the new hotkeys during gameplay. For a first check, accelerate, coast and reverse; compare the engine checkbox off/on, then try F9/F10 and walk away to check the radio fade. Public-server and every custom-vehicle combination have not been tested.
+The engine-loop repair passed **34 rendered-audio regression checks**, and the startup-detection fix passed **7 Windows thread-cache regression checks**. The owner then confirmed the corrected **0.4.2 build working in game**. This confirmation does not establish compatibility with every public server, map or custom vehicle.
+
+If audio remains original, check that the helper title shows **0.4.2** and that **Warthog engine recording** is enabled. In a supported Warthog its status should say **Engine: recording / native RPM ...**. Keep the whole `audio/` folder alongside the executable. Logs are in `logs/` beside the helper.
 
 ## Source and credits
 

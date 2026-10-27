@@ -1,5 +1,7 @@
 LOCAL AUDIO ASSETS
-engine/*.wav: six loops made from only the first sweep of the supplied recording.
+engine/*.wav: six steady textures made from the first sweep of the recording.
+Version 0.4.1 removes the recorded pitch/loudness rise inside each loop and varies
+playback pitch continuously with native RPM. Install these WAVs with the included 0.4.2 EXE.
 radio/*.wav: the four supplied MP3 songs decoded to stereo PCM16, 44100 Hz.
 Original MP3/MP4 files were not changed. Derived files contain no source metadata.
 The song and recording rights remain with their respective owners; the code's MIT

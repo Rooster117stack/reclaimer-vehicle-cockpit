@@ -34,6 +34,7 @@ sealed class VehicleAudioTelemetry {
     readonly Func<uint,float> MaxAngularVelocity;
     ulong Tls;
     DateTime NextLocate=DateTime.MinValue;
+    string LastReadError="Waiting for a local player.";
     const ulong TlsIndexRva=0xA39F9C;
 
     sealed class Table {
@@ -83,11 +84,14 @@ sealed class VehicleAudioTelemetry {
     }
     static float Distance(float[] a,float[] b) {double x=a[0]-b[0],y=a[1]-b[1],z=a[2]-b[2];return (float)Math.Sqrt(x*x+y*y+z*z);}
     void Locate() {
-        if(DateTime.UtcNow<NextLocate)throw new Exception("Waiting for a local player.");
+        if(DateTime.UtcNow<NextLocate)throw new Exception(LastReadError);
         NextLocate=DateTime.UtcNow.AddSeconds(1);
         uint index=Native.U32(Session.Read(Session.Base+TlsIndexRva,4));
         if(index>=1088)throw new Exception("Unsupported engine TLS layout.");
         var found=new HashSet<ulong>();
+        // Process.Threads is cached. A helper attached in the menu otherwise
+        // never sees the simulation thread created when a match starts.
+        Session.Process.Refresh();
         foreach(ProcessThread thread in Session.Process.Threads) {
             IntPtr handle=OpenThread(0x40,false,(uint)thread.Id);if(handle==IntPtr.Zero)continue;
             try {
@@ -104,12 +108,12 @@ sealed class VehicleAudioTelemetry {
                 found.Add(tls);
             }catch{}finally{Native.CloseHandle(handle);}
         }
-        if(found.Count!=1)throw new Exception("Waiting for one local simulation context.");
+        if(found.Count!=1)throw new Exception("Waiting for one local simulation context ("+found.Count+" found).");
         foreach(ulong tls in found)Tls=tls;
     }
     internal VehicleAudioFrame ReadFrame() {
         try {return ReadCore();}
-        catch(Exception ex) {Tls=0;return new VehicleAudioFrame {Error=ex.Message};}
+        catch(Exception ex) {Tls=0;LastReadError=ex.Message;return new VehicleAudioFrame {Error=ex.Message};}
     }
     VehicleAudioFrame ReadCore() {
         if(Tls==0)Locate();
