@@ -62,6 +62,42 @@ function Get-CameraCached {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-CameraHash $path) -ne $record.sha256) { throw 'The cached official client is missing or its checksum changed.' }
     return $record
 }
+function Get-CameraReusableHelpers {
+    foreach ($helper in @(Get-Process -Name 'WarthogCamera' -ErrorAction SilentlyContinue)) {
+        $row = Get-CimInstance Win32_Process -Filter "ProcessId=$($helper.Id)"
+        if ($null -eq $row) { continue }
+        # Test launchers may bind a helper to one particular game. It cannot attach
+        # to the next game after that target exits, despite its window staying open.
+        $bound = [regex]::Match([string]$row.CommandLine, '(?i)(?:^|\s)"?--pid"?\s+"?([0-9]+)"?(?=\s|$)')
+        if (-not $bound.Success) { Write-Output $helper; continue }
+        $target = Get-Process -Id ([int]$bound.Groups[1].Value) -ErrorAction SilentlyContinue
+        $stale = $null -eq $target
+        if (-not $stale) {
+            # A PID reused by a newer process is not the originally bound game.
+            $stale = $target.ProcessName -notlike '*reclaimer*' -or $target.StartTime -gt $helper.StartTime
+        }
+        if (-not $stale) { Write-Output $helper; continue }
+        $helper.Refresh()
+        if ($helper.HasExited) { continue }
+        if ($helper.MainModule.FileName -ine [string]$row.ExecutablePath -or
+            [Math]::Abs(($helper.StartTime.ToUniversalTime() - $row.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) {
+            throw 'The existing helper changed during startup. Run the launcher again.'
+        }
+        Write-Host 'Closing a leftover helper whose test game has ended...'
+        $closed = $helper.CloseMainWindow()
+        if ($closed) { $closed = $helper.WaitForExit(5000) }
+        if (-not $closed) {
+            # A hidden test helper has no main window to close. Only terminate it
+            # when its explicitly bound game is still absent: no live edits remain.
+            if ($null -ne (Get-Process -Id ([int]$bound.Groups[1].Value) -ErrorAction SilentlyContinue)) {
+                throw 'The leftover helper did not close normally. Close its window, then run PLAY_FIRST_PERSON.cmd again.'
+            }
+            $helper.Refresh()
+            if (-not $helper.HasExited) { $helper.Kill(); [void]$helper.WaitForExit(5000) }
+            if (-not $helper.HasExited) { throw 'The stale test helper could not be stopped.' }
+        }
+    }
+}
 try {
     if ($CheckOnly -and $PrepareOnly) { throw 'Use either -CheckOnly or -PrepareOnly.' }
     if (-not (Test-Path -LiteralPath $cameraHelper -PathType Leaf)) { throw 'WarthogCamera.exe is missing. Extract the whole ZIP first.' }
@@ -101,8 +137,11 @@ try {
         if (Test-Path -LiteralPath $cameraCache) { [IO.File]::Replace($cameraTemp, $cameraCache, [System.Management.Automation.Language.NullString]::Value) } else { [IO.File]::Move($cameraTemp, $cameraCache) }
         if ($PrepareOnly) { exit 0 }
     }
-    if (-not (Get-Process -Name 'WarthogCamera' -ErrorAction SilentlyContinue)) {
+    $cameraHelpers = @(Get-CameraReusableHelpers)
+    if ($cameraHelpers.Count -eq 0) {
         Start-Process -FilePath $cameraHelper -WorkingDirectory $cameraRoot -WindowStyle Normal | Out-Null
+    } else {
+        Write-Host 'Using the existing camera/audio helper. Leave its window open.'
     }
     if ($cameraClients.Count -eq 0) {
         $cameraStart = New-Object System.Diagnostics.ProcessStartInfo

@@ -1,147 +1,90 @@
-VEHICLE COCKPIT + WARTHOG AUDIO - 0.4.2
+VEHICLE COCKPIT + WARTHOG AUDIO - 0.4.6
 For Project Reclaimer / MCC Halo 3 1.3528.0.0 on Windows x64.
-WARTHOG ENGINE + RADIO
-Launch PLAY_FIRST_PERSON.cmd as usual. Keep the whole audio folder beside the EXE.
-The helper window title should show 0.4.2. This build fixes audio detection when
-the helper starts before joining a match. When seated in a supported Warthog,
-the audio status should say "Engine: recording / native RPM ...".
-- F8: cockpit cameras on/off (your saved camera shortcut still works unless F9/F10).
-- F9: radio on/off. It starts off.
-- F10: next station, cycling through the four supplied songs.
-- Untick "Warthog engine recording" in the helper to restore Halo's engine sound.
-
-The engine uses six steady textures prepared from the first rev sweep in the
-supplied recording. Version 0.4.1 removes each clip's recorded rise in pitch and
-volume, then continuously changes playback pitch with native Warthog engine RPM.
-This prevents the short repeated rev-up/reset heard in 0.4.0. Genuine automatic
-gear shifts can still lower RPM as the vehicle accelerates. Engine power gates
-playback, so an empty, switched-off Warthog stays silent. The recording starts
-already moving; idle is a lowered-pitch approximation. No transmission changes.
-Install the complete folder: use the 0.4.2 EXE with these revised engine WAVs.
-
-The radio follows your seated Warthog, otherwise the nearest supported Warthog.
-It is loudest in any seat, quieter outside, and silent beyond about 12 metres.
-Each song is a looping station; leaving range or switching off pauses it.
-Only your PC hears it. Friends do not need this for your audio to work.
-There is no shared server radio state, wall occlusion, or directional stereo pan.
-
-Stock and the installed HugeGrass Warthog chassis are recognized. Future maps
-need a readable matching cache and the same supported Warthog sound layout.
-Unknown layouts retain original engine sounds; the camera feature is independent.
-The native engine function is shared across Warthog variants: while replacement
-is active it is muted for those variants, and up to eight nearby running engines
-are rendered locally within about 60 metres. Tire, collision and turret sounds
-and non-Warthog cars are preserved. A future engine DLL change still needs review.
-
-Close the helper normally to restore camera and engine-sound data. If it is force
-closed, restart Reclaimer. No MCC/Reclaimer game files are changed. This release
-includes the supplied music. Use the complete v0.4.2 release ZIP, including audio/.
-
-FIRST CHECK
-Enter a Warthog, accelerate, coast and reverse. Compare the engine checkbox off/on.
-Press F9, then F10; exit the vehicle and walk away to check the radio fade.
-The owner confirmed the corrected build working in game on 2026-10-27.
 
 PLAY
-1. Extract the entire ZIP into a writable folder. Install your own MCC with Halo 3.
-2. Double-click PLAY_FIRST_PERSON.cmd. It checks the latest official stable
-   Reclaimer release, downloads it if needed and verifies SHA-256 checksums.
-   If the lookup is unavailable, it uses the last verified cached client. An
-   already-open Reclaimer client is reused without updating or restarting it.
-3. Leave Vehicle Cockpit open, join a Reclaimer game normally and enter a vehicle.
-   Wait for ON. Exit and re-enter the seat if a camera toggle needs to take effect.
-4. Press F8 to switch cameras on/off. Untick the first-person checkbox or close
-   the helper normally to restore cameras.
+Extract the whole ZIP and double-click PLAY_FIRST_PERSON.cmd. Leave the helper
+open and join normally. Its title should show 0.4.6. Keep the supplied audio
+folder beside WarthogCamera.exe; no separate music or engine files are needed.
+An already-running Reclaimer client is reused. Otherwise the launcher checks the
+latest official stable client and verifies its checksum before starting it.
+The exact Halo 3 engine layout is checked independently; an unknown engine is
+refused. Client updates do not automatically guarantee engine compatibility.
 
-The launcher and WarthogCamera.exe retain their old filenames for compatibility.
-If Reclaimer is already running, WarthogCamera.exe can also run by itself.
-Friends need this entire ZIP and their own MCC installation. No host-side camera
-mod is required; this affects only the client running the helper.
+CONTROLS
+F8: first-person cameras on/off. Your saved camera shortcut is retained.
+F9: radio on/off (starts off). F10: next station among four supplied songs.
+Change the camera shortcut in the helper's Toggle key box, then Save key.
+F9/F10 are reserved for radio; F12 is unavailable.
+Untick Warthog engine recording to hear the original engine sound.
+Some seats need exit/re-entry after toggling cameras.
 
-TOGGLE KEY
-F8 is the default. To change it, click the box beside "Toggle key:", press your
-shortcut, then click "Save key". Settings are saved in camera-settings.ini beside
-the helper. Use F1-F11 except F9/F10, or a modified shortcut; F12 is reserved.
-The shortcut acts only while the game or helper is focused. Some seats need an
-exit and re-entry before a changed camera takes effect. Leave the helper open.
+BOOST ZOOM FIX IN 0.4.6
+- Prevents accidental binocular zoom while driving supported boost vehicles in
+  first person. Uses the native boost capability and power fields, not vehicle
+  names or map lists, so compatible new/modded vehicles are detected automatically.
+- Applies to supported driver seats, including driver/gunners and native first-
+  person drivers. Passenger, turret-only, boarding and nonplayer seats are excluded.
+  Restores binocular settings on exit, F8 OFF, or normal helper close.
+- Applies only with one local player. Split-screen is excluded. Boost effects,
+  guns, sounds, physics and existing camera positions are retained. Ordinary
+  binoculars are unavailable while driving these vehicles with cockpit mode ON.
+- Vehicles that lack usable first-person camera data or native boost capability
+  are skipped; custom script-only boost cannot be inferred from these fields.
 
-CAMERAS
-The helper scans loaded vehicle seats, preferring existing configured or dedicated
-cockpit camera markers. It covers many stock and modded vehicle types, including
-HugeGrass vehicles, rather than relying on a maintained vehicle-name list.
-Boarding, AI-only and cargo seats are excluded; existing first-person seats stay.
-The second checkbox enables approximate head cameras where no usable cockpit
-marker exists. It clones the seat attachment's marker records and raises their
-Z position by 0.25 in the original node's coordinate system. Original attachment
-markers are preserved, so this does not reposition occupants. Untick that checkbox
-for existing native camera markers only. The Warthog gunner adjustment is retained.
-The HugeGrass Sabre has a targeted pilot-head correction: its named driver camera
-is actually anchored far behind the aircraft. This correction stays enabled with
-the main first-person checkbox even when generic approximate cameras are off.
-Approximate views are not individually tuned. Model scale, rotated nodes, enclosed
-hulls or missing interior surfaces can cause clipping or poor visibility. Some
-seats lack usable markers and are skipped. This cannot make every vehicle a
-finished cockpit, or make an AI-only vehicle driveable. No manual gearbox is added.
+GHOSTING UPDATE RETAINED FROM 0.4.4
+- Completely bypasses the native motion-blur pass, in addition to the earlier
+  blur amplitude reductions. All camera positions and audio are unchanged.
+- Falcon and Wombat positions were accepted by the owner and are preserved.
 
-NEW MAPS AND IMPORTED VEHICLES
-New maps are scanned automatically. Configured camera IDs can be matched directly
-against a loaded render model even when map strings are unavailable. Approximate
-clones can also work when a valid unused marker ID and seat attachment are available.
-Names used to find additional semantic cameras require the matching readable cache
-from stock MCC, an installed Steam Workshop library or Reclaimer's standard Mods
-folders. Empty virtual placeholders are skipped. Tag-table changes trigger a
-restore and rebuild so newly imported vehicles can be discovered.
+CAMERA FIXES RETAINED FROM 0.4.3
+- Falcon: moves its behind-pilot camera forward to the pilot's head.
+- Wombat: replaces a distant chase anchor with a pilot-head camera.
+- Gauss turret: positions the view directly behind the actual scope screen and
+  attaches it to the moving gun. It uses the existing model/screen shader;
+  there is no new thermal overlay or gameplay targeting behavior.
+- Converted vehicle seats: removes speed-driven camera displacement so the
+  viewpoint stays at its marker instead of pulling back through the occupant.
+- Native motion blur is suppressed while cockpit cameras are enabled in a
+  loaded match. This also affects the on-foot view. F8 OFF or normal helper
+  close restores the original renderer values. No saved graphics setting changes.
 
-COMPATIBILITY AND REMOVAL
-There is no Reclaimer client-version pin. Ordinary future Reclaimer updates can
-work automatically while the Halo 3 engine remains compatible. The exact Halo 3
-1.3528.0.0 engine hash and loaded data layouts are still checked before writes.
-If a future engine or layout changes, the helper stops safely and may need an
-update. Automatic downloads cannot guarantee compatibility with every future
-engine change. This targets Reclaimer, not Steam MCC matchmaking, and
-is shared separately from Reclaimer's automatic map/mod downloads.
-Writes are limited to loaded camera data and guarded Warthog engine-sound object functions, with verified readback and restoration.
-Approximate cameras use read/write data allocations only: no executable-page patch,
-DLL injection, input injection, physics edits or anti-cheat bypass is included.
-Normal close restores matching original fields. Allocations with uncertain live
-references stay until game exit. If force-killed, restart the game to clear changes.
-To uninstall, close the helper and delete its folder. Older packages are preserved.
+The aircraft and Gauss corrections require matching native marker geometry and
+skeletons. They work independently of the map name. Other vehicles retain the
+existing authored-camera / approximate-head selection. Unknown custom models
+may still clip or lack a usable interior. Boarding and AI-only seats are skipped.
+This cannot add missing cockpit geometry or make an AI-only vehicle driveable.
+
+AUDIO
+The accepted 0.4.2 engine mixer, native RPM telemetry, six engine textures, and
+four radio tracks are unchanged. Engine pitch follows native RPM, including its
+automatic gear changes. Engine power gates sound. Tire, collision and turret
+sounds are preserved. This package contains no manual transmission.
+Radio follows the seated or nearest supported Warthog: loudest inside, quieter
+outside, silent beyond about 12 metres. Only the user's PC hears it. Leaving
+range or switching off pauses playback. No shared radio state or wall occlusion.
+
+RESTORE / COMPATIBILITY
+Close the helper normally to restore loaded camera/render/audio data. If force
+closed, restart Reclaimer. No MCC/Reclaimer game files are modified.
+Friends need this complete package and their own MCC installation. Host-side
+camera changes are not required. New maps are scanned automatically, but need
+compatible seat/model data and a readable matching cache for named profiles.
+No anti-cheat bypass, executable code patch, or server physics change is included.
 
 TEST STATUS
-0.4.2: Fixed stale process-thread enumeration when attaching in the menu before
-a match starts. Seven real Windows thread-cache regression checks passed. Local
-player identity and memory-layout checks remain in place; retry status now keeps
-the actual detection error. Engine-loop and radio code/assets are unchanged from
-0.4.1. The owner confirmed the corrected build working in game on 2026-10-27.
-0.4.1: 34 rendered-audio regression checks passed: sustained RPM across loop
-seams, continuous acceleration across bands, RPM drop/recovery, repeated state
-updates, changing distance order, invalid controls and eight nearby engines.
-86 audio checks passed including silent Windows output streaming and all radio
-stations. These used controlled RPM inputs; subsequent owner testing confirmed
-the 0.4.2 build working in game. Native telemetry, muting, camera behavior and radio
-playback code are unchanged from the user's working 0.4.0 build.
-0.3.2: In a local HugeGrass Rebalance match, comparison against 0.3.1 confirmed only
-the Sabre driver's camera reference changed and one pilot-head marker was added.
-All 439 other seat definitions and unrelated marker groups matched. Original
-vehicle fields/markers stayed intact; F8 restored all original data exactly.
-The Sabre correction also passed with generic approximate cameras disabled.
-This verifies live camera data; cockpit framing and sustained flight remain for
-an in-seat check. Exit and re-enter the Sabre after enabling the helper.
-0.3.1 fixes the Windows PowerShell "path is not of a legal form" error when
-refreshing the launcher's existing verified release cache. Camera behavior is
-unchanged from 0.3.0.
-0.3.0: Live F8 OFF/ON and changing/saving F9 worked. Independent camera restoration
-checks passed. All 12 launcher tests passed, including verified offline fallback
-and rejection of invalid release metadata and a tampered cached executable copy.
-Historical 0.2.0 coverage: HugeGrass Rebalance exposed 214 usable seats, including
-91 already first person and 47 approximate cameras; two seats were skipped. All
-260 changed fields passed independent apply/restore checks, with native vehicle
-fields and 224 protected seats preserved.
-Individual viewpoints and every public server/mod have not been visually tested.
-
-SOURCE AND CREDITS
-MIT license: LICENSE.txt. Build: build.cmd; sources: src\WarthogCamera.cs and
-src\SeatCameraData.cs, src\WarthogAudio.cs, src\VehicleAudioTelemetry.cs and src\WarthogEngineMute.cs. Created with OpenAI Codex assistance; no game assets included. Supplied audio is separate from the code license.
-Layouts: https://github.com/XboxChaos/Assembly | https://projectreclaimer.dev/
-Official releases: https://github.com/ProjectReclaimer/project-reclaimer-releases/releases/latest
-Independent of, and not endorsed by, the Project Reclaimer developers.
+Live HugeGrass Rebalance application and F8 restoration passed: all vehicle
+physics bytes and protected seats preserved, targeted profiles found, native
+all five motion-blur values restored byte-for-byte. 29 blur regression checks
+and the exact-engine native pass-gate check passed. Earlier geometry/rejection
+checks passed; camera positions are byte-identical to accepted 0.4.3.
+Falcon and Wombat framing and the stock Valhalla Warthog were accepted by the
+owner. High-speed custom-map ghosting remains unresolved; Gauss screen rendering
+is visually unconfirmed. Ghost boost: owner-driven High Ground test passed;
+547 seated samples held 70-degree FOV with no binocular zoom. Exact binocular
+settings restored on exit and on-foot 3x zoom worked again. Owner accepted both.
+0.4.6 expands that accepted Ghost mechanism: 32 boost eligibility and exact
+apply/restore/guard checks passed. Offline cache inspection found 4 boost vehicles
+on stock Valhalla and 28 each on installed HugeGrass and HugeGrass Rebalance.
+The broader vehicle coverage has not been driving-tested; owner feedback pending.
+Download the complete v0.4.6 release ZIP for the supplied engine and radio audio.
+Built with Codex assistance. MIT source license; supplied audio remains bundled.

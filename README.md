@@ -2,15 +2,19 @@
 
 Client-local first-person vehicle cameras for Halo 3 in Project Reclaimer, plus a Warthog engine recording driven by native engine speed and a nearby radio with four songs. Driver, passenger and turret cameras work where the vehicle's camera data permits them.
 
-**[Download v0.4.2](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.2)** — choose **VehicleCockpitWarthogAudio-0.4.2.zip** under Assets. The ZIP includes all engine loops and radio tracks. The owner confirmed the corrected build working in game on **2026-10-27**.
+**[Download v0.4.6](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.6)** — choose **VehicleCockpitWarthogAudio-0.4.6.zip** under Assets. The ZIP includes all engine loops and radio tracks. GitHub's **Source code** archives do not include the audio.
 
-The earlier [v0.4.0 preview](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.0) and [v0.3.2 camera-only release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2) remain available unchanged.
+The earlier [v0.4.2 audio release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.2), [v0.4.0 preview](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.4.0) and [v0.3.2 camera-only release](https://github.com/Rooster117stack/reclaimer-vehicle-cockpit/releases/tag/v0.3.2) remain available unchanged.
 
-## Changes in 0.4.2
+## Changes in 0.4.6
 
-- Removes the repeated short rev-up/reset: steady source-derived loops now change pitch continuously with native engine RPM.
-- Fixes audio staying on Halo's default engine sound when the helper starts before joining a match.
-- Preserves the existing cockpit cameras and radio. The helper window title shows **0.4.2**.
+- Stops accidental binocular magnification in supported boost-vehicle driver seats. Detection uses native boost capability and positive boost power, so compatible new maps and modded vehicles do not need a name list.
+- Covers driver/gunners and supported native first-person drivers. Passenger, turret-only, boarding and nonplayer seats retain their existing behavior. Ordinary binoculars return when you exit, turn cameras off, or close the helper normally. Split-screen is excluded.
+- Includes the owner-accepted Falcon and Wombat camera positions from the local builds, plus the Sabre correction and a Gauss turret view aligned behind its existing scope screen. Gauss visuals remain unconfirmed; this does not add a thermal overlay.
+- Retains camera displacement and motion-blur suppression from the local builds. **High-speed custom-map vehicle ghosting remains unresolved.** Blur suppression also affects the on-foot view while cockpit mode is enabled; F8 OFF restores it.
+- Preserves the accepted Warthog engine mixer, radio and vehicle physics. The helper window title shows **0.4.6**.
+
+The Ghost boost fix was confirmed in an owner-driven High Ground test, including normal on-foot zoom afterward. Wider boost-vehicle coverage passed cache inspection and automated checks; **gameplay feedback for those vehicles is still pending**.
 
 ## Play
 
@@ -35,7 +39,7 @@ Supported Warthogs use a guarded engine-only sound-function edit. Shared sound a
 
 ## Cameras and compatibility
 
-Loaded vehicle seats are scanned automatically, including on new maps. Native cockpit markers are preferred; optional approximate head cameras use suitable seat markers. Boarding, AI-only and cargo seats are excluded. The HugeGrass Sabre pilot correction from v0.3.2 remains included. Model geometry can cause clipping, missing interiors or unusable camera positions; every vehicle has not been visually tested.
+Loaded vehicle seats are scanned automatically, including on new maps. Native cockpit markers are preferred; optional approximate head cameras use suitable seat markers. Boarding, AI-only and cargo seats are excluded. The HugeGrass Sabre pilot correction from v0.3.2 remains included. Model geometry can cause clipping, missing interiors or unusable camera positions; every vehicle has not been visually tested. Boost zoom protection requires a supported first-person driver seat and native boost fields; script-only boosts cannot be inferred from these fields. It preserves boost movement/effects and weapon settings, while disabling ordinary binoculars during supported boost-vehicle driving.
 
 Stock and the installed HugeGrass Warthog chassis were recognized. Audio on future maps requires a readable matching cache and compatible Warthog sound data. Unknown sound layouts retain the original engine sound. Split-screen audio is not supported.
 
@@ -47,7 +51,9 @@ The audio build passed 86 checks covering silent real-device playback, four stat
 
 The engine-loop repair passed **34 rendered-audio regression checks**, and the startup-detection fix passed **7 Windows thread-cache regression checks**. The owner then confirmed the corrected **0.4.2 build working in game**. This confirmation does not establish compatibility with every public server, map or custom vehicle.
 
-If audio remains original, check that the helper title shows **0.4.2** and that **Warthog engine recording** is enabled. In a supported Warthog its status should say **Engine: recording / native RPM ...**. Keep the whole `audio/` folder alongside the executable. Logs are in `logs/` beside the helper.
+The boost fix passed **32 eligibility, guarded-write and restoration checks**. Offline inspection identified 4 boost-capable vehicle definitions on stock Valhalla (Ghost, Banshee, Wraith and Chopper) and 28 each in the installed HugeGrass and HugeGrass Rebalance caches, including the Sabre and other modded aircraft. These counts establish native capability, not gameplay acceptance for every cockpit. The Ghost test held 70-degree FOV throughout 547 seated samples and restored the original binocular settings exactly on exit; normal 3x zoom returned on foot. Falcon/Wombat framing and stock Valhalla Warthog driving were accepted separately.
+
+If audio remains original, check that the helper title shows **0.4.6** and that **Warthog engine recording** is enabled. In a supported Warthog its status should say **Engine: recording / native RPM ...**. Keep the whole `audio/` folder alongside the executable. Logs are in `logs/` beside the helper.
 
 ## Source and credits
 

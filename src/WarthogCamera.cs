@@ -120,8 +120,17 @@ sealed class CameraSession : IDisposable {
     bool Approximate;
     Context Active;
     readonly List<Edit> Applied=new List<Edit>();
+    readonly Dictionary<uint,HashSet<int>> BoostDrivers=new Dictionary<uint,HashSet<int>>();
     string PendingKey;
     internal int SeatCount;
+    internal bool IsBoostDriver(uint vehicleTag,int seat) {
+        HashSet<int> seats;return Active!=null&&BoostDrivers.TryGetValue(vehicleTag,out seats)&&seats.Contains(seat)&&Same(Active);
+    }
+    void RegisterBoostDriver(uint vehicleTag,int seat) {
+        HashSet<int> seats;
+        if(!BoostDrivers.TryGetValue(vehicleTag,out seats))BoostDrivers[vehicleTag]=seats=new HashSet<int>();
+        seats.Add(seat);
+    }
 
     internal CameraSession(Process p, Action<string> log) {
         Process=p;Log=log;
@@ -227,7 +236,27 @@ sealed class CameraSession : IDisposable {
         return near(chase,4,0,0,0)&&near(cameraNode,12,-12.129789f,0,4.1f)
             &&near(source,4,1.817676f,0,1.093578f)&&near(hullNode,12,0,0,0);
     }
-    uint HeadCamera(Context c,ModelMarkers model,uint seatMarker,uint labelId,Dictionary<uint,string> names) {
+    uint AddCamera(ModelMarkers model,uint sourceKey,uint labelId,Dictionary<uint,string> names,byte[] data) {
+        uint existing;if(model.ClonedSeats.TryGetValue(sourceKey,out existing))return existing;
+        Func<uint,bool> unused=candidate=>candidate!=0&&candidate!=uint.MaxValue&&!model.Groups.ContainsKey(candidate)&&!model.Extra.Any(x=>x.Id==candidate);
+        uint id=unused(labelId)?labelId:names.Keys.Where(unused).DefaultIfEmpty(uint.MaxValue).First();
+        if(id==uint.MaxValue)return id;
+        model.Extra.Add(new ExtraMarker {Id=id,Data=data});model.ClonedSeats.Add(sourceKey,id);return id;
+    }
+    uint ScopeCamera(ModelMarkers model,string label,string attachment,uint marker,uint labelId,Dictionary<uint,string> names) {
+        Func<uint,string> name=id=>names.ContainsKey(id)?names[id]:"";
+        if(label!="warthog_g"||attachment!="gunner"||name(marker)!="camera_gunner"||model.Nodes!=6)return uint.MaxValue;
+        Func<string,byte[]> record=text=>{
+            var found=model.Groups.Where(x=>name(x.Key)==text&&x.Value.Count==1).ToArray();
+            return found.Length==1?Read(found[0].Value.Address,0x24):null;
+        };
+        var nodes=Enumerable.Range(0,model.Nodes).Select(n=>Read(model.NodeData+(ulong)n*0x60,0x60)).ToArray();
+        byte[] result;
+        if(!GaussScopeCamera.TryCreate(label,attachment,name(marker),record("camera_gunner"),record("fx_display_crate"),record("gunner"),
+            nodes.Select(n=>name(Native.U32(n))).ToArray(),nodes,out result))return uint.MaxValue;
+        return AddCamera(model,marker,labelId,names,result);
+    }
+    uint HeadCamera(Context c,ModelMarkers model,uint seatMarker,uint labelId,Dictionary<uint,string> names,float forwardOffset=0) {
         uint existing;if(model.ClonedSeats.TryGetValue(seatMarker,out existing))return existing;
         MarkerGroup attach;if(seatMarker==0||!model.Groups.TryGetValue(seatMarker,out attach))return uint.MaxValue;
         var data=Read(attach.Address,attach.Count*0x24);
@@ -236,13 +265,12 @@ sealed class CameraSession : IDisposable {
             if(data[at+2]>=model.Nodes)return uint.MaxValue;
             for(int k=4;k<0x24;k+=4) {float v=BitConverter.ToSingle(data,at+k);if(float.IsNaN(v)||float.IsInfinity(v))return uint.MaxValue;}
             float z=BitConverter.ToSingle(data,at+12);
+            float x=BitConverter.ToSingle(data,at+4);
             // Approximate seated head height, in the original attachment's node frame.
+            Buffer.BlockCopy(BitConverter.GetBytes(x+forwardOffset),0,data,at+4,4);
             Buffer.BlockCopy(BitConverter.GetBytes(z+0.25f),0,data,at+12,4);
         }
-        Func<uint,bool> unused=candidate=>candidate!=0&&candidate!=uint.MaxValue&&!model.Groups.ContainsKey(candidate)&&!model.Extra.Any(x=>x.Id==candidate);
-        uint id=unused(labelId)?labelId:names.Keys.Where(unused).DefaultIfEmpty(uint.MaxValue).First();
-        if(id==uint.MaxValue)return id;
-        model.Extra.Add(new ExtraMarker {Id=id,Data=data});model.ClonedSeats.Add(seatMarker,id);return id;
+        return AddCamera(model,seatMarker,labelId,names,data);
     }
     void ExtendMarkers(Context c,ModelMarkers model,List<Edit> planned,Dictionary<uint,string> names) {
         if(model.Extra.Count==0)return;
@@ -274,6 +302,23 @@ sealed class CameraSession : IDisposable {
         if(list.Any(x=>x.Address==address)||Applied.Any(x=>x.Address==address))return;
         list.Add(new Edit {Datum=datum,Owner=owner,Address=address,Before=before,After=after,Label=label,Row=c.Tags.Skip((int)(datum&65535)*8).Take(8).ToArray()});
     }
+    void StabilizeCamera(Context c,List<Edit> list,uint datum,ulong vehicle,ulong seat,string label) {
+        try {
+        int count;ulong block=Block(c,seat+0x98,16,out count);
+        if(count==0)return;
+        var data=Read(block,count*0x4c);
+        for(int offset=0;offset<data.Length;offset+=4) {
+            float value=BitConverter.ToSingle(data,offset);
+            if(float.IsNaN(value)||float.IsInfinity(value)||Math.Abs(value)>100000) {
+                Log("SKIP "+label+" motion scaling: unexpected camera acceleration data");return;
+            }
+        }
+        // Preserve the native block/count and curve shape. Only suppress the
+        // axial/perpendicular camera displacement multipliers, never physics.
+        for(int row=0;row<count;row++)foreach(int offset in new[]{0x10,0x28,0x40})
+            Plan(c,list,datum,vehicle,block+(ulong)(row*0x4c+offset),new byte[8],label+" camera displacement");
+        }catch(Exception error){Log("SKIP "+label+" motion scaling: "+error.Message);}
+    }
     bool OwnerValid(Context c,Edit e) {
         if(!Same(c))return false;
         ulong table=P(Base+TableRva);
@@ -299,6 +344,7 @@ sealed class CameraSession : IDisposable {
         string mapStem=Native.Z(c.Header,0xc0,32);
         if(mapStem=="130_epilogue"||mapStem=="mainmenu")return "Waiting for a game. Join a server normally.";
         if(PendingKey!=c.Key){PendingKey=c.Key;return "Waiting for the map to settle...";}
+        BoostDrivers.Clear();
         var names=new Dictionary<uint,string>();
         try {names=Strings(c);}catch(Exception e){Log("Names unavailable; using configured marker IDs: "+e.Message);}
         Func<uint,string> name=id=>names.ContainsKey(id)?names[id]:"";
@@ -310,11 +356,15 @@ sealed class CameraSession : IDisposable {
                 int count;ulong seats=Block(c,vehicle+0x258,64,out count);
                 if(count==0)continue;
                 var model=Markers(c,vehicle,datum,models);
+                // Native Unit Has Boost flag and positive power identify stock
+                // and modded boost vehicles without map names or model lists.
+                bool hasBoost=VehicleBoostZoom.HasBoost(Native.U32(Read(vehicle+0xf8,4)),BitConverter.ToSingle(Read(vehicle+0x288,4),0));
                 for(int j=0;j<count;j++) {
                     ulong seat=seats+(ulong)j*0xd4;var data=Read(seat,0xd4);uint flags=Native.U32(data),labelId=Native.U32(data,4),attachment=Native.U32(data,8);
                     int ai=BitConverter.ToInt16(data,0x40);
                     if((flags&((1u<<11)|(1u<<16)))!=0||ai==3||ai==4)continue;
-                    if((flags&16u)==0){supported++;native++;continue;}
+                    bool boostDriver=hasBoost&&VehicleBoostZoom.IsPlayerDriver(flags,ai);
+                    if((flags&16u)==0){if(boostDriver)RegisterBoostDriver(datum,j);supported++;native++;continue;}
                     string label=name(labelId),attachName=name(attachment);uint current=Native.U32(data,0x6c),marker=uint.MaxValue;
                     string configured=name(current);
                     bool cameraName=configured.IndexOf("camera",StringComparison.OrdinalIgnoreCase)>=0||configured.EndsWith("_cam",StringComparison.OrdinalIgnoreCase);
@@ -327,11 +377,25 @@ sealed class CameraSession : IDisposable {
                         else candidates.AddRange(new[]{"camera_passenger","passenger_camera","camera_rider"});
                         marker=model.Groups.Keys.Where(id=>candidates.Contains(name(id))).DefaultIfEmpty(uint.MaxValue).First();
                     }
-                    bool head=false,sabre=false;
+                    bool head=false,sabre=false;string profile=null;
+                    MarkerGroup pilotSource,pilotCamera;
+                    if(model.Groups.TryGetValue(attachment,out pilotSource)&&pilotSource.Count==1
+                        &&model.Groups.TryGetValue(marker,out pilotCamera)&&pilotCamera.Count==1) {
+                        float forwardOffset;string selected;
+                        if(VehicleCameraProfiles.TryPilot(attachName,name(marker),unchecked((int)flags),
+                            Read(pilotSource.Address,0x24),Read(pilotCamera.Address,0x24),
+                            node=>node>=0&&node<model.Nodes?Read(model.NodeData+(ulong)node*0x60,0x60):null,
+                            name,out forwardOffset,out selected)) {
+                            marker=HeadCamera(c,model,attachment,labelId,names,forwardOffset);
+                            head=marker!=uint.MaxValue;if(head)profile=selected;
+                        }
+                    }
                     if((flags&4u)!=0&&UsesSabreChaseMarker(model,attachment,marker,names)) {
                         // Correct this known chase anchor even when generic approximate cameras are off.
                         marker=HeadCamera(c,model,attachment,labelId,names);head=sabre=marker!=uint.MaxValue;
                     }
+                    uint scope=ScopeCamera(model,label,attachName,marker,labelId,names);
+                    if(scope!=uint.MaxValue){marker=scope;profile="Gauss native scope screen";}
                     if(marker==uint.MaxValue&&approximate){marker=HeadCamera(c,model,attachment,labelId,names);head=marker!=uint.MaxValue;}
                     if(marker==uint.MaxValue){skipped++;Log("SKIP vehicle "+i+" seat "+j+" "+label+": no usable camera/attachment marker");continue;}
                     string editLabel="vehicle "+i+" seat "+j+" "+label;
@@ -344,8 +408,11 @@ sealed class CameraSession : IDisposable {
                             Plan(c,planned,datum,vehicle,mg.Address+4,BitConverter.GetBytes(-0.32f).Concat(BitConverter.GetBytes(0f)).Concat(BitConverter.GetBytes(0.23f)).ToArray(),editLabel+" chaingun head position");
                     }
                     Plan(c,planned,datum,vehicle,seat+0x80,BitConverter.GetBytes(0),editLabel+" camera tracks");
+                    StabilizeCamera(c,planned,datum,vehicle,seat,editLabel);
                     Plan(c,planned,datum,vehicle,seat,BitConverter.GetBytes(flags&~(16u|128u)),editLabel+" camera flags");
-                    Log("SEAT vehicle "+i+" seat "+j+" "+label+": "+(sabre?"Sabre pilot head (chase camera corrected)":head?"approximate seat head":name(marker)==""?"configured camera ID":name(marker)));
+                    // Apply only after this driver's first-person camera is supported.
+                    if(boostDriver)RegisterBoostDriver(datum,j);
+                    Log("SEAT vehicle "+i+" seat "+j+" "+label+": "+(profile??(sabre?"Sabre pilot head (chase camera corrected)":head?"approximate seat head":name(marker)==""?"configured camera ID":name(marker))));
                     supported++;if(head)heads++;
                 }
             } catch(Exception e){Log("SKIP vehicle "+i+": "+e.Message);}
@@ -366,6 +433,7 @@ sealed class CameraSession : IDisposable {
         return supported==0?"No usable player vehicle cameras found.":"ON - "+supported+" vehicle seats ("+heads+" approximate) | "+Path.GetFileName(c.Name);
     }
     internal void Restore() {
+        BoostDrivers.Clear();
         if(Active==null)return;
         foreach(var e in Applied.AsEnumerable().Reverse()) {
             try {if(OwnerValid(Active,e)&&Read(e.Address,e.After.Length).SequenceEqual(e.After))WriteChecked(Active,e,true);}
@@ -409,6 +477,8 @@ sealed class CameraWindow : Form {
     Keys Binding=Keys.F8,PendingBinding=Keys.F8;
     bool HotkeyRegistered,RegistrationAttempted,IsClosing,RadioKeyRegistered,StationKeyRegistered;
     CameraSession Session;
+    CockpitMotionBlur MotionBlur;
+    VehicleBoostZoom BoostZoom;
     VehicleAudioTelemetry Telemetry;
     WarthogEngineMute EngineMute;
     EngineLoopMixer EngineAudio;
@@ -420,7 +490,7 @@ sealed class CameraWindow : Form {
     readonly int RequestedPid;
     readonly DateTime Deadline;
     internal CameraWindow(string[] args) {
-        Text="Vehicle Cockpit + Warthog Audio 0.4.2";ClientSize=new Size(600,465);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
+        Text="Vehicle Cockpit + Warthog Audio 0.4.6";ClientSize=new Size(600,465);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
         var folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs");Directory.CreateDirectory(folder);LogPath=Path.Combine(folder,"camera-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".log");
         for(int i=0;i<args.Length-1;i++){if(args[i]=="--pid")RequestedPid=int.Parse(args[i+1]);if(args[i]=="--seconds")Deadline=DateTime.UtcNow.AddSeconds(int.Parse(args[i+1]));}
         try {
@@ -458,7 +528,7 @@ sealed class CameraWindow : Form {
         KeyPoll.Interval=120;KeyPoll.Tick+=(s,e)=>SyncHotkey();KeyPoll.Start();
         AudioPoll.Interval=50;AudioPoll.Tick+=(s,e)=>UpdateAudio();AudioPoll.Start();
         FormClosing+=(s,e)=>{IsClosing=true;Poll.Stop();KeyPoll.Stop();AudioPoll.Stop();ReleaseHotkey();CloseSession();if(EngineAudio!=null)EngineAudio.Dispose();if(Radio!=null)Radio.Dispose();};
-        Log("Helper 0.4.2 audio player detection fix. Verified MCC Halo 3 1.3528.0.0. Camera "+CameraHotkey.Format(Binding)+"; radio F9; station F10.");
+        Log("Helper 0.4.6 Vehicle boost zoom correction. Verified MCC Halo 3 1.3528.0.0. Camera "+CameraHotkey.Format(Binding)+"; radio F9; station F10.");
     }
     bool AllowedForeground() {
         uint process;GetWindowThreadProcessId(GetForegroundWindow(),out process);
@@ -506,6 +576,8 @@ sealed class CameraWindow : Form {
         if(EngineAudio!=null)EngineAudio.Set(0,0);
         if(Radio!=null)try{Radio.Update(0);}catch{}
         Telemetry=null;
+        if(BoostZoom!=null){BoostZoom.Dispose();BoostZoom=null;}
+        if(MotionBlur!=null){MotionBlur.Dispose();MotionBlur=null;}
         if(EngineMute!=null){EngineMute.Dispose();EngineMute=null;}
         if(Session!=null){Session.Dispose();Session=null;}
     }
@@ -513,9 +585,11 @@ sealed class CameraWindow : Form {
         if(IsClosing)return;
         try {
             if(Session==null||Telemetry==null||EngineMute==null) {
+                if(BoostZoom!=null)BoostZoom.Tick(false);
                 if(EngineAudio!=null)EngineAudio.Set(0,0);if(Radio!=null)Radio.Update(0);return;
             }
             var frame=Telemetry.ReadFrame();
+            if(BoostZoom!=null)BoostZoom.Tick(EnabledBox.Checked&&frame.Valid&&Session.IsBoostDriver(frame.DirectVehicleTag,frame.DirectVehicleSeat));
             bool engine=EngineBox.Checked&&AudioError==""&&EngineAudio!=null&&EngineAudio.Error==null&&frame.Valid&&!frame.EngineFunctionsOverridden&&frame.NearbyEngines.Count>0&&frame.NearbyEngines.All(x=>x.HasNativeRpm&&EngineMute.CanMute(x.WarthogTagDatum));
             // Native caches share sound function blocks across Warthog variants.
             // Render every nearby running Warthog, not just the radio's closest one.
@@ -530,6 +604,7 @@ sealed class CameraWindow : Form {
             string key=frame.Valid+":"+frame.InWarthog+":"+frame.WarthogDatum+":"+engine+":"+RadioBox.Checked;
             if(key!=LastAudio||DateTime.UtcNow-LastAudioLog>TimeSpan.FromSeconds(5)) {Log("AUDIO "+text.Replace('\n',' '));LastAudio=key;LastAudioLog=DateTime.UtcNow;}
         }catch(Exception e) {
+            if(BoostZoom!=null)BoostZoom.Tick(false);
             if(EngineAudio!=null)EngineAudio.Set(0,0);
             if(EngineMute!=null)EngineMute.Restore();
             if(Radio!=null)try{Radio.Update(0);}catch{}
@@ -545,14 +620,18 @@ sealed class CameraWindow : Form {
                 var list=Process.GetProcesses().Where(p=>{try{return p.ProcessName.IndexOf("reclaimer",StringComparison.OrdinalIgnoreCase)>=0&&p.MainWindowHandle!=IntPtr.Zero&&p.MainWindowTitle.StartsWith("Project Reclaimer")&&(RequestedPid==0||p.Id==RequestedPid);}catch{return false;}}).ToArray();
                 if(list.Length!=1){ShowStatus(list.Length==0?"Waiting for a Reclaimer game window...":"Multiple game clients found. Close the extra client.");return;}
                 Session=new CameraSession(list[0],Log);
+                try{MotionBlur=new CockpitMotionBlur(Session,Log);}catch(Exception motionFailure){Log("Motion controls unavailable: "+motionFailure.Message);}
+                try{BoostZoom=new VehicleBoostZoom(Session,Log);}catch(Exception zoomFailure){Log("Vehicle boost zoom correction unavailable: "+zoomFailure.Message);}
                 EngineMute=new WarthogEngineMute(Session,Log);
                 Telemetry=new VehicleAudioTelemetry(Session,EngineMute.IsWarthog,EngineMute.MaxAngularVelocity);
                 if(Radio==null)Radio=new WarthogRadio(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"audio","radio"));
                 if(EngineAudio==null&&AudioError=="")try{EngineAudio=new EngineLoopMixer(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"audio","engine"));}catch(Exception audioFailure){AudioError=audioFailure.Message;Log("AUDIO INIT "+AudioError);}
             }
             ShowStatus(Session.Tick(EnabledBox.Checked,ApproximateBox.Checked));
+            if(BoostZoom!=null&&!EnabledBox.Checked)BoostZoom.Tick(false);
+            if(MotionBlur!=null)MotionBlur.Tick(EnabledBox.Checked&&Session.SeatCount>0);
             try{EngineMute.Refresh();}catch(Exception audioFailure){EngineMute.Restore();AudioStatus.Text="Audio waiting: "+audioFailure.Message;}
-        } catch(Exception e){ShowStatus(e.Message);}
+        } catch(Exception e){if(BoostZoom!=null)BoostZoom.Tick(false);if(MotionBlur!=null)MotionBlur.Tick(false);ShowStatus(e.Message);}
     }
 }
 

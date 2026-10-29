@@ -9,6 +9,9 @@ sealed class VehicleAudioFrame {
     internal bool Valid, InWarthog, HasNativeRpm, EngineRunning, EngineFunctionsOverridden;
     internal float Distance, Speed, EngineRpmNormalized, EnginePower;
     internal uint WarthogDatum=uint.MaxValue, WarthogTagDatum=uint.MaxValue;
+    // Direct vehicle seat identity also gates the Ghost's client-only zoom fix.
+    internal uint DirectVehicleTag=uint.MaxValue;
+    internal int DirectVehicleSeat=-1;
     internal int Gear;
     internal float[] ListenerPosition, WarthogPosition;
     internal string Error;
@@ -130,12 +133,17 @@ sealed class VehicleAudioTelemetry {
         Body listener=Object(ot,unit,0x180);
         if(listener.Type!=0||Native.U32(listener.Data,0x178)!=player||(Native.U32(listener.Data,0x110)&4)!=0)
             throw new Exception("Waiting for a living local player.");
-        uint parent=listener.Parent;Body attached=listener;Body seated=null;
+        uint parent=listener.Parent;Body attached=listener;Body seated=null;Body directVehicle=null;
+        int directSeat=-1;
         // Gunner bipeds can be parented to a turret which is itself attached to the chassis.
         var visited=new HashSet<uint>();visited.Add(unit);
         for(int depth=0;parent!=uint.MaxValue&&depth<5;depth++) {
             if(!visited.Add(parent))throw new Exception("Invalid vehicle parent chain.");
             attached=Object(ot,parent,0x180);
+            if(depth==0&&attached.Type==1) {
+                directVehicle=attached;
+                directSeat=BitConverter.ToInt16(Session.Read(listener.Address+0x24e,2),0);
+            }
             if(attached.Type==1&&IsWarthog(attached.Tag))seated=attached;
             parent=attached.Parent;
         }
@@ -154,6 +162,9 @@ sealed class VehicleAudioTelemetry {
             else if(nearest>0&&distance<nearest){chosen=b;nearest=distance;}
         }
         var frame=new VehicleAudioFrame {Valid=true,Distance=float.MaxValue,ListenerPosition=listenerPos};
+        if(directVehicle!=null) {
+            frame.DirectVehicleTag=directVehicle.Tag;frame.DirectVehicleSeat=directSeat;
+        }
         frame.NearbyEngines.AddRange(nearby);
         foreach(VehicleEngineFrame vehicle in nearby)if(vehicle.EngineFunctionsOverridden)frame.EngineFunctionsOverridden=true;
         if(chosen!=null) {
@@ -177,6 +188,10 @@ sealed class VehicleAudioTelemetry {
         if(P(Tls+0x38)!=objects||P(Tls+0x10)!=players||P(Tls+0x110)!=mapping
             ||Native.U32(Session.Read(mapping+0x14,4))!=unit||!Equal(listener.Row,Session.Read(listener.Header,0x18)))
             throw new Exception("Local player changed during audio read.");
+        if(directVehicle!=null&&(!Equal(directVehicle.Row,Session.Read(directVehicle.Header,0x18))
+            ||Native.U32(Session.Read(listener.Address+0x10,4))!=directVehicle.Datum
+            ||BitConverter.ToInt16(Session.Read(listener.Address+0x24e,2),0)!=directSeat))
+            throw new Exception("Local vehicle seat changed during read.");
         return frame;
     }
     VehicleEngineFrame ReadEngine(Body body,float distance) {
